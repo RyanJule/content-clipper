@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+build/
+.env.local
+
+# Environment
+.env
+.env.local
+*.env
+
+# Data directories
+data/postgres/*
+data/redis/*
+data/minio/*
+data/uploads/*
+!data/.gitkeep
+
+# Logs
+logs/*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
