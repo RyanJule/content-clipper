@@ -94,8 +94,6 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       SECRET_KEY: ${SECRET_KEY}
       FERNET_KEY: ${FERNET_KEY}
-    secrets:
-      - fernet_key
     depends_on:
       - postgres
       - redis
@@ -198,7 +196,3 @@ volumes:
     driver: local
   minio_data:
     driver: local
-
-secrets:
-  fernet_key:
-    file: ./fernet_key.txt

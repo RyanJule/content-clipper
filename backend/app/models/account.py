@@ -1,4 +1,3 @@
-# app/models/account.py
 from datetime import datetime
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String
@@ -16,9 +15,7 @@ class Account(Base):
     )
 
     # Platform data
-    platform = Column(
-        String(50), nullable=False
-    )  # e.g., "instagram", "twitter", "youtube"
+    platform = Column(String(50), nullable=False)
     account_username = Column(String(255), nullable=False)
 
     # Encrypted tokens (Fernet-encrypted)
@@ -32,5 +29,8 @@ class Account(Base):
     # Optional metadata (profile id, scopes, etc.)
     meta_info = Column(JSON, nullable=True)
 
-    # Relationship
+    # Relationships
     user = relationship("User", back_populates="accounts")
+    schedules = relationship(
+        "ContentSchedule", back_populates="account", cascade="all, delete-orphan"
+    )

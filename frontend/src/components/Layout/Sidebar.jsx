@@ -1,10 +1,13 @@
 import clsx from 'clsx'
-import { ChevronLeft, ChevronRight, Home, Scissors, Share2, Video } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Clock, Home, Scissors, Share2, Users, Video } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useStore } from '../../store'
 
 const navigation = [
   { name: 'Dashboard', to: '/dashboard', icon: Home },
+  { name: 'Accounts', to: '/accounts', icon: Users },
+  { name: 'Schedules', to: '/schedules', icon: Clock },
+  { name: 'Calendar', to: '/calendar', icon: Calendar },
   { name: 'Media Library', to: '/media', icon: Video },
   { name: 'Clips', to: '/clips', icon: Scissors },
   { name: 'Social Posts', to: '/social', icon: Share2 },
@@ -46,6 +49,7 @@ export default function Sidebar() {
                 !sidebarOpen && 'justify-center'
               )
             }
+            title={!sidebarOpen ? item.name : undefined}
           >
             <item.icon className="w-5 h-5 flex-shrink-0" />
             {sidebarOpen && <span className="ml-3 font-medium">{item.name}</span>}
@@ -56,7 +60,7 @@ export default function Sidebar() {
       {/* Toggle Button */}
       <button
         onClick={toggleSidebar}
-        className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 hover:bg-gray-50"
+        className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 hover:bg-gray-50 shadow-sm"
       >
         {sidebarOpen ? (
           <ChevronLeft className="w-4 h-4 text-gray-600" />

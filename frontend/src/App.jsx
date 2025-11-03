@@ -2,11 +2,14 @@ import { Toaster } from 'react-hot-toast'
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 import Layout from './components/Layout/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
+import Accounts from './pages/Accounts'
+import CalendarPage from './pages/CalendarPage'
 import ClipsManager from './pages/ClipsManager'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import MediaLibrary from './pages/MediaLibrary'
 import Register from './pages/Register'
+import Schedules from './pages/Schedules'
 import SocialScheduler from './pages/SocialScheduler'
 import { useStore } from './store'
 
@@ -38,6 +41,9 @@ function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="accounts" element={<Accounts />} />
+          <Route path="schedules" element={<Schedules />} />
+          <Route path="calendar" element={<CalendarPage />} />
           <Route path="media" element={<MediaLibrary />} />
           <Route path="clips" element={<ClipsManager />} />
           <Route path="social" element={<SocialScheduler />} />

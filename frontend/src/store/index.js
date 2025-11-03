@@ -8,8 +8,44 @@ export const useStore = create(set => ({
   setUser: user => set({ user, isAuthenticated: !!user }),
   logout: () => {
     authService.logout()
-    set({ user: null, isAuthenticated: false, media: [], clips: [], posts: [] })
+    set({
+      user: null,
+      isAuthenticated: false,
+      media: [],
+      clips: [],
+      posts: [],
+      accounts: [],
+      schedules: [],
+    })
   },
+
+  // Accounts state
+  accounts: [],
+  setAccounts: accounts => set({ accounts }),
+  addAccount: account => set(state => ({ accounts: [...state.accounts, account] })),
+  updateAccount: (id, updates) =>
+    set(state => ({
+      accounts: state.accounts.map(acc => (acc.id === id ? { ...acc, ...updates } : acc)),
+    })),
+  removeAccount: id => set(state => ({ accounts: state.accounts.filter(a => a.id !== id) })),
+
+  // Schedules state
+  schedules: [],
+  setSchedules: schedules => set({ schedules }),
+  addSchedule: schedule => set(state => ({ schedules: [...state.schedules, schedule] })),
+  updateSchedule: (id, updates) =>
+    set(state => ({
+      schedules: state.schedules.map(sch => (sch.id === id ? { ...sch, ...updates } : sch)),
+    })),
+  removeSchedule: id => set(state => ({ schedules: state.schedules.filter(s => s.id !== id) })),
+
+  // Calendar state
+  calendarData: [],
+  setCalendarData: data => set({ calendarData: data }),
+
+  // Selected account filter
+  selectedAccountId: null,
+  setSelectedAccountId: id => set({ selectedAccountId: id }),
 
   // Media state
   media: [],
