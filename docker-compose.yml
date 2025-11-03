@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     container_name: clipper-postgres
@@ -24,7 +23,6 @@ services:
     networks:
       - clipper-network
 
-  # Redis Cache & Celery Broker
   redis:
     image: redis:7-alpine
     container_name: clipper-redis
@@ -42,7 +40,6 @@ services:
     networks:
       - clipper-network
 
-  # MinIO Object Storage
   minio:
     image: minio/minio:latest
     container_name: clipper-minio
@@ -56,15 +53,21 @@ services:
     ports:
       - "${MINIO_API_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
     networks:
       - clipper-network
 
-  # FastAPI Backend
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: clipper-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    networks:
+      - clipper-network
+
   backend:
     build:
       context: ./backend
@@ -81,26 +84,25 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-      - MINIO_BUCKET=${MINIO_BUCKET:-clipper-media}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - SECRET_KEY=${SECRET_KEY}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-clipper-media}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+      FERNET_KEY: ${FERNET_KEY}
+    secrets:
+      - fernet_key
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - postgres
+      - redis
+      - minio
     networks:
       - clipper-network
 
-  # Celery Worker
   celery-worker:
     build:
       context: ./backend
@@ -113,13 +115,13 @@ services:
       - ./data/uploads:/app/uploads
       - ./logs:/app/logs
     environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     depends_on:
       - redis
       - postgres
@@ -127,7 +129,6 @@ services:
     networks:
       - clipper-network
 
-  # Celery Beat (Scheduler)
   celery-beat:
     build:
       context: ./backend
@@ -139,16 +140,15 @@ services:
       - ./backend:/app
       - ./logs:/app/logs
     environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
     depends_on:
       - redis
       - postgres
     networks:
       - clipper-network
 
-  # Flower (Celery Monitoring)
   flower:
     build:
       context: ./backend
@@ -159,15 +159,14 @@ services:
     ports:
       - "${FLOWER_PORT:-5555}:5555"
     environment:
-      - CELERY_BROKER_URL=${REDIS_URL}
-      - FLOWER_BASIC_AUTH=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
+      CELERY_BROKER_URL: ${REDIS_URL}
+      FLOWER_BASIC_AUTH: ${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
     depends_on:
       - redis
       - celery-worker
     networks:
       - clipper-network
 
-  # React Frontend
   frontend:
     build:
       context: ./frontend
@@ -182,7 +181,7 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     depends_on:
       - backend
     networks:
@@ -199,3 +198,7 @@ volumes:
     driver: local
   minio_data:
     driver: local
+
+secrets:
+  fernet_key:
+    file: ./fernet_key.txt

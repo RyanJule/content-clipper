@@ -1,5 +1,5 @@
-import { FileAudio, FileVideo, Play, Trash2, Upload } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { FileAudio, FileVideo, Play, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useApi } from '../hooks/useApi'
 import { mediaService } from '../services/mediaService'
@@ -7,27 +7,32 @@ import { useStore } from '../store'
 import { formatDateTime, formatDuration, formatFileSize } from '../utils/formatters'
 
 export default function MediaLibrary() {
-  const { media, setMedia, removeMedia } = useStore()
+  const { media, setMedia, removeMedia, addMedia } = useStore()
   const { loading, execute } = useApi()
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     loadMedia()
   }, [])
 
   const loadMedia = async () => {
-    execute(
-      async () => {
-        const data = await mediaService.getAll()
-        setMedia(data)
-      },
-      { errorMessage: 'Failed to load media' }
-    )
+    try {
+      const data = await mediaService.getAll()
+      setMedia(data)
+      console.log('Loaded media:', data)
+    } catch (error) {
+      console.error('Failed to load media:', error)
+      toast.error('Failed to load media files')
+    }
   }
 
   const handleFileUpload = async event => {
     const file = event.target.files[0]
     if (!file) return
+
+    console.log('Selected file:', file.name, file.type, file.size)
 
     const maxSize = 500 * 1024 * 1024 // 500MB
     if (file.size > maxSize) {
@@ -36,31 +41,44 @@ export default function MediaLibrary() {
     }
 
     setUploading(true)
+    setUploadProgress(0)
+    
     try {
-      const result = await mediaService.upload(file)
-      toast.success('File uploaded successfully!')
-      loadMedia() // Reload media list
+      toast.loading('Uploading file...', { id: 'upload' })
+      
+      const result = await mediaService.upload(file, progress => {
+        setUploadProgress(progress)
+      })
+      
+      console.log('Upload result:', result)
+      toast.success('File uploaded successfully!', { id: 'upload' })
+      
+      // Reload media list
+      await loadMedia()
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Upload failed')
+      console.error('Upload error:', error)
+      const message = error.response?.data?.detail || error.message || 'Upload failed'
+      toast.error(message, { id: 'upload' })
     } finally {
       setUploading(false)
-      event.target.value = '' // Reset input
+      setUploadProgress(0)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
   const handleDelete = async id => {
-    if (!confirm('Are you sure you want to delete this media?')) return
+    if (!window.confirm('Are you sure you want to delete this media?')) return
 
-    execute(
-      async () => {
-        await mediaService.delete(id)
-        removeMedia(id)
-      },
-      {
-        successMessage: 'Media deleted successfully',
-        errorMessage: 'Failed to delete media',
-      }
-    )
+    try {
+      await mediaService.delete(id)
+      removeMedia(id)
+      toast.success('Media deleted successfully')
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error('Failed to delete media')
+    }
   }
 
   return (
@@ -70,18 +88,44 @@ export default function MediaLibrary() {
           <h2 className="text-3xl font-bold text-gray-900">Media Library</h2>
           <p className="text-gray-600 mt-1">Upload and manage your video and audio files</p>
         </div>
-        <label className="btn btn-primary flex items-center space-x-2 cursor-pointer">
-          <Upload className="w-5 h-5" />
-          <span>{uploading ? 'Uploading...' : 'Upload Media'}</span>
-          <input
-            type="file"
-            accept="video/*,audio/*"
-            onChange={handleFileUpload}
-            disabled={uploading}
-            className="hidden"
-          />
-        </label>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={loadMedia}
+            className="btn btn-secondary flex items-center space-x-2"
+            disabled={loading}
+          >
+            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+          <label className="btn btn-primary flex items-center space-x-2 cursor-pointer">
+            <Upload className="w-5 h-5" />
+            <span>{uploading ? `Uploading ${uploadProgress}%` : 'Upload Media'}</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*,audio/*"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+        </div>
       </div>
+
+      {uploading && (
+        <div className="card p-4 mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-gray-600">Uploading...</span>
+            <span className="text-sm font-medium text-gray-900">{uploadProgress}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-primary-600 h-2 rounded-full transition-all"
+              style={{ width: `${uploadProgress}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
 
       {loading && media.length === 0 ? (
         <div className="text-center py-12">
@@ -108,7 +152,6 @@ export default function MediaLibrary() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {media.map(item => (
             <div key={item.id} className="card overflow-hidden hover:shadow-md transition-shadow">
-              {/* Thumbnail */}
               <div className="aspect-video bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
                 {item.media_type === 'video' ? (
                   <FileVideo className="w-16 h-16 text-primary-600" />
@@ -117,7 +160,6 @@ export default function MediaLibrary() {
                 )}
               </div>
 
-              {/* Content */}
               <div className="p-4">
                 <h3 className="font-semibold text-gray-900 truncate" title={item.original_filename}>
                   {item.original_filename}
@@ -151,21 +193,15 @@ export default function MediaLibrary() {
                       {item.status}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500 mt-2">
-                    {formatDateTime(item.created_at)}
-                  </div>
+                  <div className="text-xs text-gray-500 mt-2">{formatDateTime(item.created_at)}</div>
                 </div>
 
-                {/* Actions */}
                 <div className="mt-4 flex space-x-2">
                   <button className="flex-1 btn btn-secondary text-sm py-1.5">
                     <Play className="w-4 h-4 inline mr-1" />
                     View
                   </button>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="btn btn-danger text-sm py-1.5 px-3"
-                  >
+                  <button onClick={() => handleDelete(item.id)} className="btn btn-danger text-sm py-1.5 px-3">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>

@@ -1,7 +1,10 @@
+# app/schemas/user.py
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, Field
+
+from app.schemas.account import Account  # import the new schema
 
 
 class UserBase(BaseModel):
@@ -27,6 +30,7 @@ class User(UserBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    accounts: List[Account] = []  # New relationship field
 
     class Config:
         from_attributes = True

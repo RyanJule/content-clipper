@@ -1,6 +1,16 @@
 import { create } from 'zustand'
+import { authService } from '../services/authService'
 
 export const useStore = create(set => ({
+  // Auth state
+  user: authService.getCurrentUser(),
+  isAuthenticated: authService.isLoggedIn(),
+  setUser: user => set({ user, isAuthenticated: !!user }),
+  logout: () => {
+    authService.logout()
+    set({ user: null, isAuthenticated: false, media: [], clips: [], posts: [] })
+  },
+
   // Media state
   media: [],
   setMedia: media => set({ media }),

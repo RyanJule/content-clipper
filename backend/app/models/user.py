@@ -25,3 +25,6 @@ class User(Base):
     social_posts = relationship(
         "SocialPost", back_populates="owner", cascade="all, delete-orphan"
     )
+    accounts = relationship(
+        "Account", back_populates="user", cascade="all, delete-orphan"
+    )

@@ -1,11 +1,14 @@
-import { Scissors, Share2, TrendingUp, Video } from 'lucide-react'
+import { Calendar, Scissors, Share2, TrendingUp, Upload, Video } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
+import { useNavigate } from 'react-router-dom'
 import { useApi } from '../hooks/useApi'
 import { clipService } from '../services/clipService'
 import { mediaService } from '../services/mediaService'
 import { socialService } from '../services/socialService'
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [stats, setStats] = useState({
     mediaCount: 0,
     clipsCount: 0,
@@ -19,23 +22,22 @@ export default function Dashboard() {
   }, [])
 
   const loadStats = async () => {
-    execute(
-      async () => {
-        const [media, clips, posts] = await Promise.all([
-          mediaService.getAll(),
-          clipService.getAll(),
-          socialService.getAll(),
-        ])
+    try {
+      const [media, clips, posts] = await Promise.all([
+        mediaService.getAll().catch(() => []),
+        clipService.getAll().catch(() => []),
+        socialService.getAll().catch(() => []),
+      ])
 
-        setStats({
-          mediaCount: media.length,
-          clipsCount: clips.length,
-          postsCount: posts.length,
-          scheduledCount: posts.filter(p => p.status === 'scheduled').length,
-        })
-      },
-      { errorMessage: 'Failed to load dashboard stats' }
-    )
+      setStats({
+        mediaCount: media.length,
+        clipsCount: clips.length,
+        postsCount: posts.length,
+        scheduledCount: posts.filter(p => p.status === 'scheduled').length,
+      })
+    } catch (error) {
+      console.error('Failed to load stats:', error)
+    }
   }
 
   const statCards = [
@@ -101,19 +103,49 @@ export default function Dashboard() {
       <div className="card p-6">
         <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="btn btn-primary flex items-center justify-center space-x-2">
-            <Video className="w-5 h-5" />
+          <button
+            onClick={() => navigate('/media')}
+            className="btn btn-primary flex items-center justify-center space-x-2"
+          >
+            <Upload className="w-5 h-5" />
             <span>Upload Media</span>
           </button>
-          <button className="btn btn-secondary flex items-center justify-center space-x-2">
+          <button
+            onClick={() => navigate('/clips')}
+            className="btn btn-secondary flex items-center justify-center space-x-2"
+          >
             <Scissors className="w-5 h-5" />
             <span>Create Clip</span>
           </button>
-          <button className="btn btn-secondary flex items-center justify-center space-x-2">
-            <Share2 className="w-5 h-5" />
+          <button
+            onClick={() => navigate('/social')}
+            className="btn btn-secondary flex items-center justify-center space-x-2"
+          >
+            <Calendar className="w-5 h-5" />
             <span>Schedule Post</span>
           </button>
         </div>
+      </div>
+
+      {/* API Connection Test */}
+      <div className="card p-6 mt-6">
+        <h3 className="text-xl font-bold text-gray-900 mb-4">System Health</h3>
+        <button
+          onClick={async () => {
+            try {
+              const response = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/health/`)
+              const data = await response.json()
+              console.log('Health check:', data)
+              toast.success(`API Status: ${data.status}`)
+            } catch (error) {
+              console.error('Health check failed:', error)
+              toast.error('Failed to connect to API')
+            }
+          }}
+          className="btn btn-secondary"
+        >
+          Test API Connection
+        </button>
       </div>
 
       {/* Getting Started Guide */}

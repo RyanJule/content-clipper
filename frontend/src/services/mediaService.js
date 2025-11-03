@@ -1,20 +1,17 @@
 import api from './api'
 
 export const mediaService = {
-  // Get all media
   getAll: async () => {
     const response = await api.get('/media/')
     return response.data
   },
 
-  // Get single media
   getById: async id => {
     const response = await api.get(`/media/${id}`)
     return response.data
   },
 
-  // Upload media
-  upload: async file => {
+  upload: async (file, onProgress) => {
     const formData = new FormData()
     formData.append('file', file)
 
@@ -22,11 +19,16 @@ export const mediaService = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress: progressEvent => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          onProgress(progress)
+        }
+      },
     })
     return response.data
   },
 
-  // Delete media
   delete: async id => {
     const response = await api.delete(`/media/${id}`)
     return response.data
