@@ -4,11 +4,6 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.v1 import api_router
 from app.core.config import settings
-from app.core.database import engine
-from app.models import Base
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Content Clipper API",

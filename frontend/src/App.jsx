@@ -8,9 +8,11 @@ import ClipsManager from './pages/ClipsManager'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import MediaLibrary from './pages/MediaLibrary'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 import Register from './pages/Register'
 import Schedules from './pages/Schedules'
 import SocialScheduler from './pages/SocialScheduler'
+import TermsOfService from './pages/TermsOfService'
 import { useStore } from './store'
 
 function App() {
@@ -29,7 +31,9 @@ function App() {
           path="/register"
           element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />}
         />
-
+        <Route path="/terms" element={<TermsOfService />} />
+        
+          <Route path="/privacy" element={<PrivacyPolicy />} />
         {/* Protected Routes */}
         <Route
           path="/"

@@ -184,13 +184,20 @@ export default function Register() {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-4">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
               <Link to="/login" className="text-primary-600 hover:text-primary-700 font-medium">
                 Sign in
               </Link>
             </p>
+            <p className="text-xs text-gray-500">
+              By creating an account, you agree to our{' '}
+              <Link to="/terms" className="text-primary-600 hover:underline">
+                Terms of Service
+              </Link>
+            </p>
+            <a href="/privacy" className="text-xs hover:text-gray-700">Privacy Policy</a>
           </div>
         </div>
       </div>
