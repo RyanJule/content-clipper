@@ -8,6 +8,7 @@ import ClipsManager from './pages/ClipsManager'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import MediaLibrary from './pages/MediaLibrary'
+import OAuthSuccess from './pages/OAuthSuccess'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import Register from './pages/Register'
 import Schedules from './pages/Schedules'
@@ -51,6 +52,7 @@ function App() {
           <Route path="media" element={<MediaLibrary />} />
           <Route path="clips" element={<ClipsManager />} />
           <Route path="social" element={<SocialScheduler />} />
+          <Route path="/oauth/success" element={<OAuthSuccess />} />
         </Route>
 
         {/* Catch all */}

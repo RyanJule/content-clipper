@@ -82,7 +82,7 @@ services:
       - ./data/uploads:/app/uploads
       - ./logs:/app/logs
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "8000:8000"
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       DATABASE_URL: ${DATABASE_URL}

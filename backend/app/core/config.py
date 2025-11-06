@@ -1,3 +1,4 @@
+# backend/app/core/config.py
 import secrets
 from typing import List
 
@@ -9,10 +10,15 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
 
+    # URLs
+    BACKEND_URL: str = "https://www.machine-systems.org"
+    FRONTEND_URL: str = "https://www.machine-systems.org"
+
     # Security
     SECRET_KEY: str = secrets.token_urlsafe(32)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    FERNET_KEY: str = ""
 
     # Database
     DATABASE_URL: str
@@ -30,14 +36,27 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str = ""
 
-    # Social Media APIs
+    # Instagram OAuth (via Facebook)
+    INSTAGRAM_CLIENT_ID: str = ""
+    INSTAGRAM_CLIENT_SECRET: str = ""
+
+    # YouTube OAuth (via Google)
+    YOUTUBE_CLIENT_ID: str = ""
+    YOUTUBE_CLIENT_SECRET: str = ""
+
+    # LinkedIn OAuth
+    LINKEDIN_CLIENT_ID: str = ""
+    LINKEDIN_CLIENT_SECRET: str = ""
+
+    # TikTok OAuth
+    TIKTOK_CLIENT_KEY: str = ""
+    TIKTOK_CLIENT_SECRET: str = ""
+
+    # Twitter/X OAuth
     TWITTER_API_KEY: str = ""
     TWITTER_API_SECRET: str = ""
     TWITTER_ACCESS_TOKEN: str = ""
     TWITTER_ACCESS_SECRET: str = ""
-
-    LINKEDIN_CLIENT_ID: str = ""
-    LINKEDIN_CLIENT_SECRET: str = ""
 
     # CORS - Allow all origins in development
     ALLOWED_ORIGINS: List[str] = ["*"]
