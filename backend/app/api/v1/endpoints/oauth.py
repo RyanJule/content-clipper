@@ -76,6 +76,9 @@ async def oauth_authorize(
     platform: str, current_user: User = Depends(get_current_active_user)
 ):
     """Initiate OAuth flow - returns authorization URL"""
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
         provider = get_oauth_provider(platform)
     except ValueError as e:
@@ -89,6 +92,14 @@ async def oauth_authorize(
 
     # Get authorization URL
     auth_url = provider.get_authorization_url(state)
+
+    # Debug logging for Instagram OAuth
+    if platform == "instagram":
+        logger.info(f"Instagram OAuth Debug:")
+        logger.info(f"  Client ID: {provider.client_id[:10]}...{provider.client_id[-4:]} (length: {len(provider.client_id)})")
+        logger.info(f"  Authorization URL: {provider.authorization_url}")
+        logger.info(f"  Redirect URI: {provider.redirect_uri}")
+        logger.info(f"  Generated URL (first 150 chars): {auth_url[:150]}...")
 
     return {"authorization_url": auth_url, "platform": platform}
 
