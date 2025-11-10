@@ -138,7 +138,7 @@ async def publish_social_post(
         )
 
     try:
-        result = social_service.publish_post(db, post_id=post_id)
+        result = await social_service.publish_post(db, post_id=post_id)
         return result
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

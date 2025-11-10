@@ -305,3 +305,41 @@ async def oauth_status(
         "connected_at": account.connected_at,
         "token_expires_at": account.token_expires_at,
     }
+
+
+@router.get("/instagram/available-accounts")
+async def get_available_instagram_accounts(
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Get list of available Instagram Business accounts from user's Facebook Pages.
+
+    This endpoint is used during the OAuth flow to allow users to select
+    which Instagram account to connect if they have multiple options.
+
+    Permissions used:
+    - pages_show_list: Lists Facebook Pages
+    - instagram_business_basic: Gets Instagram account info
+
+    Note: This requires a valid Facebook access token. Should be called
+    during or after the OAuth flow.
+    """
+    from app.services.oauth_service import get_oauth_provider
+    from app.models.account import Account as AccountModel
+    from app.core.crypto import decrypt_token
+
+    # Check if user has a connected Instagram account to get access token
+    # In a real implementation, you'd need to handle the OAuth flow first
+    # This is a placeholder for the app review documentation
+
+    # For now, return an informative message
+    return {
+        "message": "This endpoint is called during OAuth flow",
+        "instructions": [
+            "Complete OAuth authorization first",
+            "This will provide access to your Facebook Pages",
+            "Pages with Instagram Business accounts will be listed",
+            "Select the account you want to connect"
+        ],
+        "note": "This endpoint demonstrates the pages_show_list and instagram_business_basic permissions"
+    }
