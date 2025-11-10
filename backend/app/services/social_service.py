@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.models.social_post import PostStatus, SocialPost, PostPlatform
+from app.models.social_post import PostStatus, SocialPost, SocialPlatform
 from app.models.account import Account
 from app.schemas.social_post import SocialPostCreate, SocialPostUpdate
 from app.services.clip_service import get_clip
@@ -130,7 +130,7 @@ async def publish_post(db: Session, post_id: int) -> dict:
         db.commit()
 
         # Publish based on platform
-        if db_post.platform == PostPlatform.INSTAGRAM:
+        if db_post.platform == SocialPlatform.INSTAGRAM:
             result = await _publish_to_instagram(db_post, clip, account)
         else:
             # For other platforms, use mock implementation for now
