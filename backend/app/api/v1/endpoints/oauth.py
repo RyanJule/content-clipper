@@ -19,6 +19,43 @@ router = APIRouter()
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
+@router.get("/debug/config")
+async def debug_oauth_config():
+    """
+    Debug endpoint to check OAuth configuration without exposing secrets.
+    Returns masked values to verify configuration is loaded correctly.
+    """
+    def mask_value(value: str, show_chars: int = 4) -> str:
+        """Show first and last N characters, mask the middle"""
+        if not value:
+            return "NOT SET"
+        if len(value) <= show_chars * 2:
+            return f"{value[:2]}...{value[-2:]}"
+        return f"{value[:show_chars]}...{value[-show_chars:]}"
+
+    return {
+        "environment": settings.ENVIRONMENT,
+        "backend_url": settings.BACKEND_URL,
+        "frontend_url": settings.FRONTEND_URL,
+        "instagram": {
+            "client_id": mask_value(settings.INSTAGRAM_CLIENT_ID) if settings.INSTAGRAM_CLIENT_ID else "NOT SET",
+            "client_id_length": len(settings.INSTAGRAM_CLIENT_ID) if settings.INSTAGRAM_CLIENT_ID else 0,
+            "client_secret": "SET" if settings.INSTAGRAM_CLIENT_SECRET else "NOT SET",
+            "client_secret_length": len(settings.INSTAGRAM_CLIENT_SECRET) if settings.INSTAGRAM_CLIENT_SECRET else 0,
+        },
+        "youtube": {
+            "client_id": "SET" if settings.YOUTUBE_CLIENT_ID else "NOT SET",
+            "client_secret": "SET" if settings.YOUTUBE_CLIENT_SECRET else "NOT SET",
+        },
+        "linkedin": {
+            "client_id": "SET" if settings.LINKEDIN_CLIENT_ID else "NOT SET",
+            "client_secret": "SET" if settings.LINKEDIN_CLIENT_SECRET else "NOT SET",
+        },
+        "note": "This is a debug endpoint. Secrets are masked for security."
+    }
+
+
+
 def store_oauth_state(state: str, data: dict, expire: int = 600):
     """Store OAuth state in Redis with 10 minute expiration"""
     redis_client.setex(f"oauth_state:{state}", expire, json.dumps(data))

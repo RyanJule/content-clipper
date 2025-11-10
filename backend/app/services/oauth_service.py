@@ -84,6 +84,15 @@ class InstagramOAuth(OAuthProvider):
         self.platform_name = "instagram"
         self.client_id = settings.INSTAGRAM_CLIENT_ID
         self.client_secret = settings.INSTAGRAM_CLIENT_SECRET
+
+        # Validate credentials are configured
+        if not self.client_id or not self.client_secret:
+            raise ValueError(
+                "Instagram/Facebook OAuth credentials not configured. "
+                "Please set INSTAGRAM_CLIENT_ID and INSTAGRAM_CLIENT_SECRET in your .env file. "
+                "Get these from https://developers.facebook.com/apps"
+            )
+
         self.redirect_uri = f"{settings.BACKEND_URL}/api/v1/oauth/instagram/callback"
         # Use Facebook OAuth for Instagram Business API access
         self.authorization_url = "https://www.facebook.com/v18.0/dialog/oauth"

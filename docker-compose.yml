@@ -94,6 +94,17 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       SECRET_KEY: ${SECRET_KEY}
       FERNET_KEY: ${FERNET_KEY}
+      # Social Media OAuth Credentials
+      INSTAGRAM_CLIENT_ID: ${INSTAGRAM_CLIENT_ID}
+      INSTAGRAM_CLIENT_SECRET: ${INSTAGRAM_CLIENT_SECRET}
+      YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID:-}
+      YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET:-}
+      LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}
+      LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
+      TIKTOK_CLIENT_KEY: ${TIKTOK_CLIENT_KEY:-}
+      TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}
+      BACKEND_URL: ${BACKEND_URL:-https://www.machine-systems.org}
+      FRONTEND_URL: ${FRONTEND_URL:-https://www.machine-systems.org}
     depends_on:
       - postgres
       - redis
