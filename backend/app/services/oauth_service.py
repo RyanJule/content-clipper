@@ -81,6 +81,9 @@ class InstagramOAuth(OAuthProvider):
 
     def __init__(self):
         super().__init__()
+        import logging
+        logger = logging.getLogger(__name__)
+
         self.platform_name = "instagram"
         self.client_id = settings.INSTAGRAM_CLIENT_ID
         self.client_secret = settings.INSTAGRAM_CLIENT_SECRET
@@ -97,20 +100,34 @@ class InstagramOAuth(OAuthProvider):
         # Use Facebook OAuth for Instagram Business API access
         self.authorization_url = "https://www.facebook.com/v18.0/dialog/oauth"
         self.token_url = "https://graph.facebook.com/v18.0/oauth/access_token"
-        # All permissions required for app review
-        self.scope = [
-            "instagram_basic",                          # Basic Instagram access
-            "instagram_business_basic",                 # Instagram Business basic info
-            "instagram_business_content_publish",       # Publish content
-            "instagram_manage_comments",                # Manage comments
-            "instagram_business_manage_messages",       # Manage DMs
-            "instagram_business_manage_insights",       # Access insights
-            "instagram_manage_messages",                # Manage messages (legacy)
-            "pages_read_engagement",                    # Read page engagement
-            "pages_show_list",                          # List pages
-            "business_management",                      # Manage business assets
-            "public_profile",                           # Public profile info
-        ]
+
+        # Check if we should use minimal permissions for testing
+        # Set INSTAGRAM_USE_MINIMAL_PERMISSIONS=true in .env for testing without Instagram Graph API product
+        use_minimal = settings.ENVIRONMENT == "development" and not hasattr(settings, 'INSTAGRAM_USE_FULL_PERMISSIONS')
+
+        if use_minimal:
+            # Minimal permissions that work without Instagram Graph API product
+            # Use these for initial OAuth testing
+            logger.warning("Using minimal Instagram permissions for testing. Add Instagram Graph API product to your Facebook app for full functionality.")
+            self.scope = [
+                "public_profile",                           # Public profile info
+                "pages_show_list",                          # List pages
+            ]
+        else:
+            # All permissions required for full Instagram functionality
+            self.scope = [
+                "public_profile",                           # Public profile info
+                "pages_show_list",                          # List pages
+                "pages_read_engagement",                    # Read page engagement
+                "business_management",                      # Manage business assets
+                "instagram_basic",                          # Basic Instagram access
+                "instagram_business_basic",                 # Instagram Business basic info
+                "instagram_business_content_publish",       # Publish content
+                "instagram_manage_comments",                # Manage comments
+                "instagram_business_manage_messages",       # Manage DMs
+                "instagram_business_manage_insights",       # Access insights
+                "instagram_manage_messages",                # Manage messages (legacy)
+            ]
 
     def get_authorization_url(self, state: str) -> str:
         """
