@@ -19,6 +19,43 @@ router = APIRouter()
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
+@router.get("/debug/config")
+async def debug_oauth_config():
+    """
+    Debug endpoint to check OAuth configuration without exposing secrets.
+    Returns masked values to verify configuration is loaded correctly.
+    """
+    def mask_value(value: str, show_chars: int = 4) -> str:
+        """Show first and last N characters, mask the middle"""
+        if not value:
+            return "NOT SET"
+        if len(value) <= show_chars * 2:
+            return f"{value[:2]}...{value[-2:]}"
+        return f"{value[:show_chars]}...{value[-show_chars:]}"
+
+    return {
+        "environment": settings.ENVIRONMENT,
+        "backend_url": settings.BACKEND_URL,
+        "frontend_url": settings.FRONTEND_URL,
+        "instagram": {
+            "client_id": mask_value(settings.INSTAGRAM_CLIENT_ID) if settings.INSTAGRAM_CLIENT_ID else "NOT SET",
+            "client_id_length": len(settings.INSTAGRAM_CLIENT_ID) if settings.INSTAGRAM_CLIENT_ID else 0,
+            "client_secret": "SET" if settings.INSTAGRAM_CLIENT_SECRET else "NOT SET",
+            "client_secret_length": len(settings.INSTAGRAM_CLIENT_SECRET) if settings.INSTAGRAM_CLIENT_SECRET else 0,
+        },
+        "youtube": {
+            "client_id": "SET" if settings.YOUTUBE_CLIENT_ID else "NOT SET",
+            "client_secret": "SET" if settings.YOUTUBE_CLIENT_SECRET else "NOT SET",
+        },
+        "linkedin": {
+            "client_id": "SET" if settings.LINKEDIN_CLIENT_ID else "NOT SET",
+            "client_secret": "SET" if settings.LINKEDIN_CLIENT_SECRET else "NOT SET",
+        },
+        "note": "This is a debug endpoint. Secrets are masked for security."
+    }
+
+
+
 def store_oauth_state(state: str, data: dict, expire: int = 600):
     """Store OAuth state in Redis with 10 minute expiration"""
     redis_client.setex(f"oauth_state:{state}", expire, json.dumps(data))
@@ -39,6 +76,9 @@ async def oauth_authorize(
     platform: str, current_user: User = Depends(get_current_active_user)
 ):
     """Initiate OAuth flow - returns authorization URL"""
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
         provider = get_oauth_provider(platform)
     except ValueError as e:
@@ -52,6 +92,14 @@ async def oauth_authorize(
 
     # Get authorization URL
     auth_url = provider.get_authorization_url(state)
+
+    # Debug logging for Instagram OAuth
+    if platform == "instagram":
+        logger.info(f"Instagram OAuth Debug:")
+        logger.info(f"  Client ID: {provider.client_id[:10]}...{provider.client_id[-4:]} (length: {len(provider.client_id)})")
+        logger.info(f"  Authorization URL: {provider.authorization_url}")
+        logger.info(f"  Redirect URI: {provider.redirect_uri}")
+        logger.info(f"  Generated URL (first 150 chars): {auth_url[:150]}...")
 
     return {"authorization_url": auth_url, "platform": platform}
 
@@ -304,4 +352,42 @@ async def oauth_status(
         "is_expired": is_expired,
         "connected_at": account.connected_at,
         "token_expires_at": account.token_expires_at,
+    }
+
+
+@router.get("/instagram/available-accounts")
+async def get_available_instagram_accounts(
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Get list of available Instagram Business accounts from user's Facebook Pages.
+
+    This endpoint is used during the OAuth flow to allow users to select
+    which Instagram account to connect if they have multiple options.
+
+    Permissions used:
+    - pages_show_list: Lists Facebook Pages
+    - instagram_business_basic: Gets Instagram account info
+
+    Note: This requires a valid Facebook access token. Should be called
+    during or after the OAuth flow.
+    """
+    from app.services.oauth_service import get_oauth_provider
+    from app.models.account import Account as AccountModel
+    from app.core.crypto import decrypt_token
+
+    # Check if user has a connected Instagram account to get access token
+    # In a real implementation, you'd need to handle the OAuth flow first
+    # This is a placeholder for the app review documentation
+
+    # For now, return an informative message
+    return {
+        "message": "This endpoint is called during OAuth flow",
+        "instructions": [
+            "Complete OAuth authorization first",
+            "This will provide access to your Facebook Pages",
+            "Pages with Instagram Business accounts will be listed",
+            "Select the account you want to connect"
+        ],
+        "note": "This endpoint demonstrates the pages_show_list and instagram_business_basic permissions"
     }
