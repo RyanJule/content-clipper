@@ -1,62 +1,59 @@
 // frontend/src/components/Accounts/OAuthConnectModal.jsx
 import { Instagram, Linkedin, X, Youtube } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { oauthService } from '../../services/oauthService'
 
 const platforms = [
-  { 
-    id: 'instagram', 
-    name: 'Instagram', 
-    icon: Instagram, 
-    color: 'bg-pink-500', 
-    description: 'Connect your Instagram account to schedule Reels' 
+  {
+    id: 'instagram',
+    name: 'Instagram',
+    icon: Instagram,
+    color: 'bg-pink-500',
+    description: 'Connect your Instagram account to schedule Reels'
   },
-  { 
-    id: 'youtube', 
-    name: 'YouTube', 
-    icon: Youtube, 
-    color: 'bg-red-600', 
-    description: 'Connect your YouTube channel to upload Shorts and videos' 
+  {
+    id: 'youtube',
+    name: 'YouTube',
+    icon: Youtube,
+    color: 'bg-red-600',
+    description: 'Connect your YouTube channel to upload Shorts and videos'
   },
-  { 
-    id: 'linkedin', 
-    name: 'LinkedIn', 
-    icon: Linkedin, 
-    color: 'bg-blue-700', 
-    description: 'Connect your LinkedIn profile for professional content' 
+  {
+    id: 'linkedin',
+    name: 'LinkedIn',
+    icon: Linkedin,
+    color: 'bg-blue-700',
+    description: 'Connect your LinkedIn profile for professional content'
   },
 ]
 
 export default function OAuthConnectModal({ onClose, onSuccess }) {
   const [connecting, setConnecting] = useState(null)
+  const connectingRef = useRef(null)
+  const timeoutRef = useRef(null)
 
   useEffect(() => {
-    // Handle messages from OAuth popup
+    // Handle messages from OAuth popup (same-origin since popup redirects to frontend)
     const handleMessage = (event) => {
-      // Accept messages from both www and non-www versions
-      const allowedOrigins = [
-        'https://machine-systems.org',
-        'https://www.machine-systems.org'
-      ]
-      
-      if (!allowedOrigins.includes(event.origin)) {
-        console.warn('Received message from unknown origin:', event.origin)
+      if (event.origin !== window.location.origin) {
         return
       }
 
-      const { type, platform, error } = event.data
+      const { type, platform, error } = event.data || {}
 
       if (type === 'OAUTH_SUCCESS') {
         console.log('OAuth success received for platform:', platform)
         toast.success(`${platform} connected successfully!`)
         setConnecting(null)
+        connectingRef.current = null
         onSuccess()
         onClose()
       } else if (type === 'OAUTH_ERROR') {
         console.error('OAuth error:', error)
         toast.error(`Failed to connect: ${error}`)
         setConnecting(null)
+        connectingRef.current = null
       }
     }
 
@@ -64,22 +61,26 @@ export default function OAuthConnectModal({ onClose, onSuccess }) {
 
     return () => {
       window.removeEventListener('message', handleMessage)
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
     }
   }, [onClose, onSuccess])
 
   const handleConnect = async (platformId) => {
     setConnecting(platformId)
-    
+    connectingRef.current = platformId
+
     try {
       // Get authorization URL from backend
       const response = await oauthService.initiateOAuth(platformId)
-      
+
       // Open popup window
       const width = 600
       const height = 700
       const left = window.screen.width / 2 - width / 2
       const top = window.screen.height / 2 - height / 2
-      
+
       const popup = window.open(
         response.authorization_url,
         'OAuthPopup',
@@ -89,13 +90,16 @@ export default function OAuthConnectModal({ onClose, onSuccess }) {
       if (!popup) {
         toast.error('Popup blocked! Please allow popups for this site.')
         setConnecting(null)
+        connectingRef.current = null
         return
       }
 
-      // Set a timeout to reset connecting state if no response after 2 minutes
-      setTimeout(() => {
-        if (connecting === platformId) {
+      // Safety timeout: reset connecting state if no response after 2 minutes
+      timeoutRef.current = setTimeout(() => {
+        if (connectingRef.current === platformId) {
           setConnecting(null)
+          connectingRef.current = null
+          toast.error('Connection timed out. Please try again.')
         }
       }, 120000)
 
@@ -103,6 +107,7 @@ export default function OAuthConnectModal({ onClose, onSuccess }) {
       console.error('OAuth initiation error:', error)
       toast.error(error.response?.data?.detail || 'Failed to initiate connection')
       setConnecting(null)
+      connectingRef.current = null
     }
   }
 
@@ -111,8 +116,8 @@ export default function OAuthConnectModal({ onClose, onSuccess }) {
       <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
           <h2 className="text-2xl font-bold text-gray-900">Connect Account</h2>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
             disabled={connecting}
           >
@@ -157,7 +162,7 @@ export default function OAuthConnectModal({ onClose, onSuccess }) {
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
             <p className="text-sm text-blue-800">
-              <strong>🔒 Secure OAuth 2.0:</strong> You'll be redirected to the official platform login page. 
+              <strong>Secure OAuth 2.0:</strong> You'll be redirected to the official platform login page.
               We never see your password. You can revoke access at any time from your platform's settings.
             </p>
           </div>

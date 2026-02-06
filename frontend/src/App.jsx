@@ -33,8 +33,9 @@ function App() {
           element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />}
         />
         <Route path="/terms" element={<TermsOfService />} />
-        
-          <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/oauth/success" element={<OAuthSuccess />} />
+
         {/* Protected Routes */}
         <Route
           path="/"
@@ -52,7 +53,6 @@ function App() {
           <Route path="media" element={<MediaLibrary />} />
           <Route path="clips" element={<ClipsManager />} />
           <Route path="social" element={<SocialScheduler />} />
-          <Route path="/oauth/success" element={<OAuthSuccess />} />
         </Route>
 
         {/* Catch all */}
