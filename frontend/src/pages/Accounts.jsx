@@ -12,8 +12,8 @@ export default function Accounts() {
   const { loading, execute } = useApi()
   const [showConnectModal, setShowConnectModal] = useState(false)
 
-  const loadAccounts = async () => {
-    execute(
+  const loadAccounts = () => {
+    return execute(
       async () => {
         const data = await accountService.getAll()
         setAccounts(data)

@@ -2,10 +2,11 @@
 import json
 import secrets
 from typing import Optional
+from urllib.parse import quote
 
 import redis
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_active_user
@@ -114,99 +115,39 @@ async def oauth_callback(
     db: Session = Depends(get_db),
 ):
     """
-    OAuth callback endpoint - receives authorization code from provider
-    Returns HTML with JavaScript to communicate with parent window
+    OAuth callback endpoint - receives authorization code from provider.
+    After processing, redirects the popup to the frontend OAuthSuccess page
+    which relays the result to the parent window via postMessage.
     """
     import logging
 
     logger = logging.getLogger(__name__)
 
-    # Get frontend URL for postMessage origin
-    frontend_origin = settings.FRONTEND_URL
+    frontend_url = settings.FRONTEND_URL
 
     # Handle error from OAuth provider
     if error:
         error_msg = error_description or error
         logger.error(f"OAuth provider error: {error_msg}")
-
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head><title>OAuth Error</title></head>
-        <body>
-        <script>
-            console.log('Sending error message to parent');
-            if (window.opener) {{
-                window.opener.postMessage({{
-                    type: 'OAUTH_ERROR',
-                    error: '{error_msg}'
-                }}, '{frontend_origin}');
-                setTimeout(() => window.close(), 100);
-            }} else {{
-                window.location.href = '{frontend_origin}/accounts?error={error_msg}';
-            }}
-        </script>
-        <p>Authorization failed. This window will close automatically.</p>
-        </body>
-        </html>
-        """
-        return HTMLResponse(html_content)
+        return RedirectResponse(
+            url=f"{frontend_url}/oauth/success?error={quote(error_msg)}"
+        )
 
     # Validate required parameters
     if not code or not state:
         missing = "code" if not code else "state"
         logger.error(f"Missing OAuth parameter: {missing}")
-
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head><title>OAuth Error</title></head>
-        <body>
-        <script>
-            console.log('Sending missing parameter error to parent');
-            if (window.opener) {{
-                window.opener.postMessage({{
-                    type: 'OAUTH_ERROR',
-                    error: 'Missing {missing} parameter'
-                }}, '{frontend_origin}');
-                setTimeout(() => window.close(), 100);
-            }} else {{
-                window.location.href = '{frontend_origin}/accounts?error=missing_{missing}';
-            }}
-        </script>
-        <p>Authorization incomplete. This window will close automatically.</p>
-        </body>
-        </html>
-        """
-        return HTMLResponse(html_content)
+        return RedirectResponse(
+            url=f"{frontend_url}/oauth/success?error={quote(f'Missing {missing} parameter')}"
+        )
 
     # Validate state token
     state_data = get_oauth_state(state)
     if not state_data:
         logger.error(f"Invalid or expired state token: {state}")
-
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head><title>OAuth Error</title></head>
-        <body>
-        <script>
-            console.log('Sending invalid state error to parent');
-            if (window.opener) {{
-                window.opener.postMessage({{
-                    type: 'OAUTH_ERROR',
-                    error: 'Invalid or expired session'
-                }}, '{frontend_origin}');
-                setTimeout(() => window.close(), 100);
-            }} else {{
-                window.location.href = '{frontend_origin}/accounts?error=invalid_state';
-            }}
-        </script>
-        <p>Session expired. Please try again.</p>
-        </body>
-        </html>
-        """
-        return HTMLResponse(html_content)
+        return RedirectResponse(
+            url=f"{frontend_url}/oauth/success?error={quote('Invalid or expired session. Please try again.')}"
+        )
 
     # Exchange code for tokens
     try:
@@ -234,59 +175,15 @@ async def oauth_callback(
             f"Successfully connected {platform} for user {state_data['user_id']}"
         )
 
-        # Return success HTML
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head><title>OAuth Success</title></head>
-        <body>
-        <script>
-            console.log('Sending success message to parent');
-            if (window.opener) {{
-                window.opener.postMessage({{
-                    type: 'OAUTH_SUCCESS',
-                    platform: '{platform}'
-                }}, '{frontend_origin}');
-                setTimeout(() => window.close(), 100);
-            }} else {{
-                window.location.href = '{frontend_origin}/accounts?success=true&platform={platform}';
-            }}
-        </script>
-        <div style="text-align: center; padding: 40px; font-family: sans-serif;">
-            <h2>✓ Connected Successfully!</h2>
-            <p>Your {platform} account has been connected.</p>
-            <p style="color: #666;">This window will close automatically...</p>
-        </div>
-        </body>
-        </html>
-        """
-        return HTMLResponse(html_content)
+        return RedirectResponse(
+            url=f"{frontend_url}/oauth/success?platform={quote(platform)}"
+        )
 
     except Exception as e:
         logger.error(f"OAuth callback error for {platform}: {e}", exc_info=True)
-
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head><title>OAuth Error</title></head>
-        <body>
-        <script>
-            console.log('Sending connection failed error to parent');
-            if (window.opener) {{
-                window.opener.postMessage({{
-                    type: 'OAUTH_ERROR',
-                    error: 'Failed to connect account'
-                }}, '{frontend_origin}');
-                setTimeout(() => window.close(), 100);
-            }} else {{
-                window.location.href = '{frontend_origin}/accounts?error=connection_failed';
-            }}
-        </script>
-        <p>Connection failed. Please try again.</p>
-        </body>
-        </html>
-        """
-        return HTMLResponse(html_content)
+        return RedirectResponse(
+            url=f"{frontend_url}/oauth/success?error={quote('Failed to connect account. Please try again.')}"
+        )
 
 
 @router.post("/{platform}/disconnect")
