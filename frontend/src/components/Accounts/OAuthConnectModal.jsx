@@ -34,9 +34,16 @@ export default function OAuthConnectModal({ onClose, onSuccess }) {
   const timeoutRef = useRef(null)
 
   useEffect(() => {
-    // Handle messages from OAuth popup (same-origin since popup redirects to frontend)
+    // Handle messages from OAuth popup.
+    // Accept both www and non-www origin variants since the popup
+    // may be redirected to a different subdomain variant via FRONTEND_URL.
     const handleMessage = (event) => {
-      if (event.origin !== window.location.origin) {
+      const currentOrigin = window.location.origin
+      const wwwVariant = currentOrigin.includes('://www.')
+        ? currentOrigin.replace('://www.', '://')
+        : currentOrigin.replace('://', '://www.')
+
+      if (event.origin !== currentOrigin && event.origin !== wwwVariant) {
         return
       }
 

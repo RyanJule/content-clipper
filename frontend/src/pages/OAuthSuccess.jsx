@@ -9,17 +9,25 @@ export default function OAuthSuccess() {
 
   useEffect(() => {
     if (window.opener) {
-      if (error) {
-        window.opener.postMessage(
-          { type: 'OAUTH_ERROR', error },
-          window.location.origin
-        )
+      const message = error
+        ? { type: 'OAUTH_ERROR', error }
+        : { type: 'OAUTH_SUCCESS', platform }
+
+      // Post to both www and non-www origins to handle mismatch
+      // between the popup (redirected via FRONTEND_URL) and the
+      // parent window (which may use a different subdomain variant).
+      const origin = window.location.origin
+      const targetOrigins = [origin]
+      if (origin.includes('://www.')) {
+        targetOrigins.push(origin.replace('://www.', '://'))
       } else {
-        window.opener.postMessage(
-          { type: 'OAUTH_SUCCESS', platform },
-          window.location.origin
-        )
+        targetOrigins.push(origin.replace('://', '://www.'))
       }
+
+      targetOrigins.forEach(targetOrigin => {
+        window.opener.postMessage(message, targetOrigin)
+      })
+
       // Give the parent window time to process the message before closing
       setTimeout(() => window.close(), 500)
     }
