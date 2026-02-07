@@ -231,8 +231,8 @@ INSTAGRAM_CLIENT_ID=your_facebook_app_id
 INSTAGRAM_CLIENT_SECRET=your_facebook_app_secret
 
 # URLs
-BACKEND_URL=https://www.machine-systems.org
-FRONTEND_URL=https://www.machine-systems.org
+BACKEND_URL=https://machine-systems.org
+FRONTEND_URL=https://machine-systems.org
 
 # Encryption
 FERNET_KEY=your_fernet_key_here
