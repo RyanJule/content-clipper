@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # URLs
-    BACKEND_URL: str = "https://www.machine-systems.org"
-    FRONTEND_URL: str = "https://www.machine-systems.org"
+    BACKEND_URL: str = "https://machine-systems.org"
+    FRONTEND_URL: str = "https://machine-systems.org"
 
     # Security
     SECRET_KEY: str = secrets.token_urlsafe(32)

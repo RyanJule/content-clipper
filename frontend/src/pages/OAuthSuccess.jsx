@@ -25,7 +25,12 @@ export default function OAuthSuccess() {
       }
 
       targetOrigins.forEach(targetOrigin => {
-        window.opener.postMessage(message, targetOrigin)
+        try {
+          window.opener.postMessage(message, targetOrigin)
+        } catch (e) {
+          // postMessage throws DOMException when targetOrigin doesn't match
+          // the recipient window's origin. Continue to try the next variant.
+        }
       })
 
       // Give the parent window time to process the message before closing
