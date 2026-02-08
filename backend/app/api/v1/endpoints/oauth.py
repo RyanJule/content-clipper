@@ -185,6 +185,11 @@ async def oauth_callback(
             url=f"{frontend_url}/oauth/success?platform={quote(platform)}"
         )
 
+    except ValueError as e:
+        logger.warning(f"OAuth callback validation error for {platform}: {e}")
+        return RedirectResponse(
+            url=f"{frontend_url}/oauth/success?error={quote(str(e))}"
+        )
     except Exception as e:
         logger.error(f"OAuth callback error for {platform}: {e}", exc_info=True)
         return RedirectResponse(

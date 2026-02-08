@@ -201,9 +201,16 @@ class InstagramOAuth(OAuthProvider):
                     break
 
             if not instagram_account:
+                pages = pages_data.get("data", [])
+                if not pages:
+                    raise ValueError(
+                        "No Facebook Pages found. You need a Facebook Page with a "
+                        "connected Instagram Business or Creator account."
+                    )
                 raise ValueError(
-                    "No Instagram Business Account found. Please connect an Instagram "
-                    "Business or Creator account to your Facebook Page first."
+                    "No Instagram Business Account found on your Facebook Pages. "
+                    "Please connect an Instagram Business or Creator account to "
+                    "your Facebook Page first."
                 )
 
             return {
