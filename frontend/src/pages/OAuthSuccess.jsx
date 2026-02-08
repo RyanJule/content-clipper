@@ -6,6 +6,7 @@ export default function OAuthSuccess() {
   const [searchParams] = useSearchParams()
   const platform = searchParams.get('platform')
   const error = searchParams.get('error')
+  const callerOrigin = searchParams.get('caller_origin')
 
   useEffect(() => {
     if (window.opener) {
@@ -13,30 +14,39 @@ export default function OAuthSuccess() {
         ? { type: 'OAUTH_ERROR', error }
         : { type: 'OAUTH_SUCCESS', platform }
 
-      // Post to both www and non-www origins to handle mismatch
-      // between the popup (redirected via FRONTEND_URL) and the
-      // parent window (which may use a different subdomain variant).
+      // Build list of target origins to try.
+      // Prefer caller_origin (the actual parent window origin passed through
+      // the OAuth flow) to avoid www/non-www mismatches.
+      const targetOrigins = []
+      if (callerOrigin) {
+        targetOrigins.push(callerOrigin)
+      }
+
+      // Fall back to guessing from our own origin (www and non-www variants)
       const origin = window.location.origin
-      const targetOrigins = [origin]
-      if (origin.includes('://www.')) {
-        targetOrigins.push(origin.replace('://www.', '://'))
-      } else {
-        targetOrigins.push(origin.replace('://', '://www.'))
+      if (!targetOrigins.includes(origin)) {
+        targetOrigins.push(origin)
+      }
+      const altOrigin = origin.includes('://www.')
+        ? origin.replace('://www.', '://')
+        : origin.replace('://', '://www.')
+      if (!targetOrigins.includes(altOrigin)) {
+        targetOrigins.push(altOrigin)
       }
 
       targetOrigins.forEach(targetOrigin => {
         try {
           window.opener.postMessage(message, targetOrigin)
-        } catch (e) {
-          // postMessage throws DOMException when targetOrigin doesn't match
-          // the recipient window's origin. Continue to try the next variant.
+        } catch {
+          // Silently ignore — postMessage with wrong targetOrigin is
+          // discarded by the browser (logged as a console warning).
         }
       })
 
       // Give the parent window time to process the message before closing
       setTimeout(() => window.close(), 500)
     }
-  }, [platform, error])
+  }, [platform, error, callerOrigin])
 
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-50">

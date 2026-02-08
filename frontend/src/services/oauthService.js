@@ -4,7 +4,9 @@ import api from './api'
 export const oauthService = {
   // Initiate OAuth flow
   initiateOAuth: async platform => {
-    const response = await api.get(`/oauth/${platform}/authorize`)
+    const response = await api.get(`/oauth/${platform}/authorize`, {
+      params: { caller_origin: window.location.origin }
+    })
     return response.data
   },
 

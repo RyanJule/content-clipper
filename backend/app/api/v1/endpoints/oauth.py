@@ -80,7 +80,9 @@ def get_oauth_state(state: str) -> Optional[dict]:
 
 @router.get("/{platform}/authorize")
 async def oauth_authorize(
-    platform: str, current_user: User = Depends(get_current_active_user)
+    platform: str,
+    caller_origin: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_active_user),
 ):
     """Initiate OAuth flow - returns authorization URL"""
     import logging
@@ -94,8 +96,12 @@ async def oauth_authorize(
     # Generate secure state token
     state = secrets.token_urlsafe(32)
 
-    # Store in Redis
-    store_oauth_state(state, {"user_id": current_user.id, "platform": platform})
+    # Store in Redis (include caller_origin so the callback can relay it
+    # to the OAuthSuccess page for reliable cross-origin postMessage)
+    state_data = {"user_id": current_user.id, "platform": platform}
+    if caller_origin:
+        state_data["caller_origin"] = caller_origin
+    store_oauth_state(state, state_data)
 
     # Get authorization URL
     auth_url = provider.get_authorization_url(state)
@@ -131,29 +137,43 @@ async def oauth_callback(
 
     frontend_url = settings.FRONTEND_URL
 
+    def success_redirect(caller_origin: Optional[str] = None, **params) -> RedirectResponse:
+        """Build redirect to OAuthSuccess page, forwarding caller_origin for postMessage."""
+        qs = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
+        if caller_origin:
+            qs += f"&caller_origin={quote(caller_origin)}"
+        return RedirectResponse(url=f"{frontend_url}/oauth/success?{qs}")
+
     # Handle error from OAuth provider
     if error:
         error_msg = error_description or error
         logger.error(f"OAuth provider error: {error_msg}")
-        return RedirectResponse(
-            url=f"{frontend_url}/oauth/success?error={quote(error_msg)}"
-        )
+        return success_redirect(error=error_msg)
 
     # Validate required parameters
     if not code or not state:
         missing = "code" if not code else "state"
-        logger.error(f"Missing OAuth parameter: {missing}")
-        return RedirectResponse(
-            url=f"{frontend_url}/oauth/success?error={quote(f'Missing {missing} parameter')}"
+        logger.error(
+            f"Missing OAuth parameter: {missing}. "
+            f"This usually means the OAuth provider did not redirect properly. "
+            f"Check that BACKEND_URL ({settings.BACKEND_URL}) matches the domain "
+            f"serving this app, and that the redirect URI is whitelisted in "
+            f"your OAuth provider settings."
+        )
+        return success_redirect(
+            error=f"Missing {missing} parameter. Check that the redirect URI "
+                  f"matches your OAuth provider settings."
         )
 
     # Validate state token
     state_data = get_oauth_state(state)
     if not state_data:
         logger.error(f"Invalid or expired state token: {state}")
-        return RedirectResponse(
-            url=f"{frontend_url}/oauth/success?error={quote('Invalid or expired session. Please try again.')}"
+        return success_redirect(
+            error="Invalid or expired session. Please try again."
         )
+
+    caller_origin = state_data.get("caller_origin")
 
     # Exchange code for tokens
     try:
@@ -181,14 +201,13 @@ async def oauth_callback(
             f"Successfully connected {platform} for user {state_data['user_id']}"
         )
 
-        return RedirectResponse(
-            url=f"{frontend_url}/oauth/success?platform={quote(platform)}"
-        )
+        return success_redirect(caller_origin=caller_origin, platform=platform)
 
     except Exception as e:
         logger.error(f"OAuth callback error for {platform}: {e}", exc_info=True)
-        return RedirectResponse(
-            url=f"{frontend_url}/oauth/success?error={quote('Failed to connect account. Please try again.')}"
+        return success_redirect(
+            caller_origin=caller_origin,
+            error="Failed to connect account. Please try again.",
         )
 
 
