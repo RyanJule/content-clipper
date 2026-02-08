@@ -34,10 +34,16 @@ async def debug_oauth_config():
             return f"{value[:2]}...{value[-2:]}"
         return f"{value[:show_chars]}...{value[-show_chars:]}"
 
+    redirect_uris = {
+        platform: f"{settings.BACKEND_URL}/api/v1/oauth/{platform}/callback"
+        for platform in ["instagram", "youtube", "linkedin", "tiktok"]
+    }
+
     return {
         "environment": settings.ENVIRONMENT,
         "backend_url": settings.BACKEND_URL,
         "frontend_url": settings.FRONTEND_URL,
+        "redirect_uris": redirect_uris,
         "instagram": {
             "client_id": mask_value(settings.INSTAGRAM_CLIENT_ID) if settings.INSTAGRAM_CLIENT_ID else "NOT SET",
             "client_id_length": len(settings.INSTAGRAM_CLIENT_ID) if settings.INSTAGRAM_CLIENT_ID else 0,
@@ -52,7 +58,7 @@ async def debug_oauth_config():
             "client_id": "SET" if settings.LINKEDIN_CLIENT_ID else "NOT SET",
             "client_secret": "SET" if settings.LINKEDIN_CLIENT_SECRET else "NOT SET",
         },
-        "note": "This is a debug endpoint. Secrets are masked for security."
+        "note": "This is a debug endpoint. Secrets are masked for security. Add the redirect_uris to your OAuth provider's allowed redirect URIs."
     }
 
 

@@ -2,6 +2,7 @@
 import secrets
 from typing import List
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -13,6 +14,11 @@ class Settings(BaseSettings):
     # URLs
     BACKEND_URL: str = "https://machine-systems.org"
     FRONTEND_URL: str = "https://machine-systems.org"
+
+    @field_validator("BACKEND_URL", "FRONTEND_URL")
+    @classmethod
+    def strip_trailing_slash(cls, v: str) -> str:
+        return v.rstrip("/")
 
     # Security
     SECRET_KEY: str = secrets.token_urlsafe(32)
