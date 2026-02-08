@@ -13,25 +13,20 @@ export default function OAuthSuccess() {
         ? { type: 'OAUTH_ERROR', error }
         : { type: 'OAUTH_SUCCESS', platform }
 
-      // Post to both www and non-www origins to handle mismatch
-      // between the popup (redirected via FRONTEND_URL) and the
-      // parent window (which may use a different subdomain variant).
-      const origin = window.location.origin
-      const targetOrigins = [origin]
-      if (origin.includes('://www.')) {
-        targetOrigins.push(origin.replace('://www.', '://'))
-      } else {
-        targetOrigins.push(origin.replace('://', '://www.'))
+      // Detect the opener's actual origin to avoid postMessage errors
+      // from www/non-www mismatches. If the opener is same-origin we
+      // can read it directly; otherwise fall back to '*' (the receiver
+      // in OAuthConnectModal already validates event.origin).
+      let targetOrigin
+      try {
+        targetOrigin = window.opener.location.origin
+      } catch {
+        // Cross-origin access denied (e.g. www vs non-www). Use '*'
+        // as fallback — the parent validates the sender origin anyway.
+        targetOrigin = '*'
       }
 
-      targetOrigins.forEach(targetOrigin => {
-        try {
-          window.opener.postMessage(message, targetOrigin)
-        } catch (e) {
-          // postMessage throws DOMException when targetOrigin doesn't match
-          // the recipient window's origin. Continue to try the next variant.
-        }
-      })
+      window.opener.postMessage(message, targetOrigin)
 
       // Give the parent window time to process the message before closing
       setTimeout(() => window.close(), 500)
