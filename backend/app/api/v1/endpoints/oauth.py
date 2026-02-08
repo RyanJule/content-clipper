@@ -5,7 +5,7 @@ from typing import Optional
 from urllib.parse import quote
 
 import redis
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -63,6 +63,22 @@ async def debug_oauth_config():
 
 
 
+def _get_request_origin(request: Request) -> Optional[str]:
+    """Derive the public-facing origin (scheme + host) from the incoming request.
+
+    Uses X-Forwarded headers (set by reverse proxies) when available,
+    falling back to the Host header.  Returns None if the origin cannot
+    be determined reliably.
+    """
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if not host:
+        return None
+    # Strip port for standard ports
+    host = host.split(",")[0].strip()  # Take first if multiple proxies
+    return f"{scheme}://{host}".rstrip("/")
+
+
 def store_oauth_state(state: str, data: dict, expire: int = 600):
     """Store OAuth state in Redis with 10 minute expiration"""
     redis_client.setex(f"oauth_state:{state}", expire, json.dumps(data))
@@ -80,6 +96,7 @@ def get_oauth_state(state: str) -> Optional[dict]:
 
 @router.get("/{platform}/authorize")
 async def oauth_authorize(
+    request: Request,
     platform: str,
     caller_origin: Optional[str] = Query(None),
     current_user: User = Depends(get_current_active_user),
@@ -93,12 +110,25 @@ async def oauth_authorize(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Derive redirect_uri from the actual request origin so it matches the
+    # domain the user is browsing on, regardless of what BACKEND_URL is set to.
+    # This prevents www/non-www mismatches that cause Facebook to reject the
+    # redirect or an intermediate redirect to strip query parameters.
+    request_origin = _get_request_origin(request)
+    if request_origin:
+        provider.redirect_uri = f"{request_origin}/api/v1/oauth/{platform}/callback"
+        logger.info(f"Using request-derived redirect_uri: {provider.redirect_uri}")
+
     # Generate secure state token
     state = secrets.token_urlsafe(32)
 
-    # Store in Redis (include caller_origin so the callback can relay it
-    # to the OAuthSuccess page for reliable cross-origin postMessage)
-    state_data = {"user_id": current_user.id, "platform": platform}
+    # Store in Redis (include caller_origin for postMessage and redirect_uri
+    # so the callback can use the exact same URI for the token exchange)
+    state_data = {
+        "user_id": current_user.id,
+        "platform": platform,
+        "redirect_uri": provider.redirect_uri,
+    }
     if caller_origin:
         state_data["caller_origin"] = caller_origin
     store_oauth_state(state, state_data)
@@ -138,11 +168,17 @@ async def oauth_callback(
     frontend_url = settings.FRONTEND_URL
 
     def success_redirect(caller_origin: Optional[str] = None, **params) -> RedirectResponse:
-        """Build redirect to OAuthSuccess page, forwarding caller_origin for postMessage."""
+        """Build redirect to OAuthSuccess page, forwarding caller_origin for postMessage.
+
+        When caller_origin is available, redirect the popup to the caller's
+        domain instead of FRONTEND_URL.  This ensures the popup and parent
+        window share the same origin, avoiding cross-origin postMessage issues.
+        """
+        base_url = caller_origin or frontend_url
         qs = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
         if caller_origin:
             qs += f"&caller_origin={quote(caller_origin)}"
-        return RedirectResponse(url=f"{frontend_url}/oauth/success?{qs}")
+        return RedirectResponse(url=f"{base_url}/oauth/success?{qs}")
 
     # Handle error from OAuth provider
     if error:
@@ -180,6 +216,13 @@ async def oauth_callback(
         logger.info(f"Exchanging OAuth code for {platform}")
 
         provider = get_oauth_provider(platform)
+
+        # Use the same redirect_uri that was sent in the authorization request.
+        # OAuth providers require an exact match during token exchange.
+        stored_redirect_uri = state_data.get("redirect_uri")
+        if stored_redirect_uri:
+            provider.redirect_uri = stored_redirect_uri
+
         token_data = await provider.exchange_code_for_token(code)
 
         # Get user info from platform
