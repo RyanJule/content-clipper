@@ -36,4 +36,10 @@ export const clipService = {
     const response = await api.delete(`/clips/${id}`)
     return response.data
   },
+
+  // Get presigned streaming URL for a clip
+  getStreamUrl: async (id, expires = 3600) => {
+    const response = await api.get(`/clips/${id}/url`, { params: { expires } })
+    return response.data
+  },
 }

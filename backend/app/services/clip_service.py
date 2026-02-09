@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.storage import minio_client
 from app.models.clip import Clip, ClipStatus
 from app.schemas.clip import ClipCreate, ClipUpdate
 from app.services.media_service import get_media
@@ -16,6 +17,28 @@ logger = logging.getLogger(__name__)
 
 CLIPS_DIR = Path("/app/uploads/clips")
 CLIPS_DIR.mkdir(parents=True, exist_ok=True)
+
+# MinIO object key prefix for clip files
+CLIPS_OBJECT_PREFIX = "clips/"
+
+
+def _clip_object_key(filename: str) -> str:
+    """Build the MinIO object key for a clip file."""
+    return f"{CLIPS_OBJECT_PREFIX}{filename}"
+
+
+def get_clip_url(clip: Clip, expires: int = 3600) -> Optional[str]:
+    """Generate a presigned URL for streaming/downloading a clip file.
+
+    Args:
+        clip: The Clip database object.
+        expires: URL lifetime in seconds (default 1 hour).
+
+    Returns:
+        A presigned URL string, or None if the file is not in object storage.
+    """
+    object_key = _clip_object_key(clip.filename)
+    return minio_client.get_presigned_url(object_key, expires=expires)
 
 
 def get_clip(db: Session, clip_id: int) -> Optional[Clip]:
@@ -110,12 +133,19 @@ def delete_clip(db: Session, clip_id: int) -> bool:
     if not db_clip:
         return False
 
-    # Delete physical file
+    # Delete from MinIO
+    object_key = _clip_object_key(db_clip.filename)
+    try:
+        minio_client.delete_file(object_key)
+    except Exception as e:
+        logger.error(f"Error deleting clip from MinIO: {e}")
+
+    # Delete local file
     try:
         if os.path.exists(db_clip.file_path):
             os.remove(db_clip.file_path)
     except Exception as e:
-        logger.error(f"Error deleting clip file: {e}")
+        logger.error(f"Error deleting local clip file: {e}")
 
     # Delete from database
     db.delete(db_clip)

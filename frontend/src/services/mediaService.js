@@ -33,4 +33,9 @@ export const mediaService = {
     const response = await api.delete(`/media/${id}`)
     return response.data
   },
+
+  getStreamUrl: async (id, expires = 3600) => {
+    const response = await api.get(`/media/${id}/url`, { params: { expires } })
+    return response.data
+  },
 }

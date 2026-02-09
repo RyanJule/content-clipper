@@ -45,3 +45,9 @@ class MediaUploadResponse(BaseModel):
     filename: str
     status: str
     message: str
+
+
+class MediaURLResponse(BaseModel):
+    media_id: int
+    url: str
+    expires_in: int  # seconds until URL expires

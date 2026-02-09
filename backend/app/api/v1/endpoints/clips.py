@@ -1,12 +1,12 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_active_user
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.clip import Clip, ClipCreate, ClipUpdate
+from app.schemas.clip import Clip, ClipCreate, ClipURLResponse, ClipUpdate
 from app.services import clip_service
 
 router = APIRouter()
@@ -60,6 +60,39 @@ async def get_clip(
         )
 
     return clip
+
+
+@router.get("/{clip_id}/url", response_model=ClipURLResponse)
+async def get_clip_url(
+    clip_id: int,
+    expires: int = Query(default=3600, ge=60, le=86400, description="URL expiry in seconds"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get a presigned URL for streaming or downloading a clip file.
+
+    The URL is temporary and expires after the specified duration (default 1 hour).
+    """
+    clip = clip_service.get_clip(db, clip_id=clip_id)
+    if clip is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Clip not found"
+        )
+
+    if clip.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this clip",
+        )
+
+    url = clip_service.get_clip_url(clip, expires=expires)
+    if url is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Clip file not available in storage",
+        )
+
+    return ClipURLResponse(clip_id=clip.id, url=url, expires_in=expires)
 
 
 @router.put("/{clip_id}", response_model=Clip)

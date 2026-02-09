@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from minio import Minio
 from minio.error import S3Error
@@ -58,15 +59,33 @@ class MinIOClient:
             logger.error(f"Error deleting file: {e}")
             return False
 
-    def get_presigned_url(self, object_name: str, expires: int = 3600):
-        """Get a presigned URL for an object"""
+    def file_exists(self, object_name: str) -> bool:
+        """Check if a file exists in MinIO"""
+        try:
+            self.client.stat_object(settings.MINIO_BUCKET, object_name)
+            return True
+        except S3Error:
+            return False
+
+    def get_presigned_url(self, object_name: str, expires: int = 3600) -> str | None:
+        """Get a presigned URL for an object.
+
+        Args:
+            object_name: The object key in the bucket.
+            expires: URL expiration time in seconds (default 1 hour).
+
+        Returns:
+            The presigned URL string, or None on error.
+        """
         try:
             url = self.client.presigned_get_object(
-                settings.MINIO_BUCKET, object_name, expires=expires
+                settings.MINIO_BUCKET,
+                object_name,
+                expires=timedelta(seconds=expires),
             )
             return url
         except S3Error as e:
-            logger.error(f"Error getting presigned URL: {e}")
+            logger.error(f"Error getting presigned URL for {object_name}: {e}")
             return None
 
 

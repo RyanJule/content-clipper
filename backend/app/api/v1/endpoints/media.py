@@ -1,12 +1,12 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_active_user
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.media import Media, MediaUploadResponse
+from app.schemas.media import Media, MediaURLResponse, MediaUploadResponse
 from app.services import media_service
 
 router = APIRouter()
@@ -68,6 +68,39 @@ async def get_media(
         )
 
     return media
+
+
+@router.get("/{media_id}/url", response_model=MediaURLResponse)
+async def get_media_url(
+    media_id: int,
+    expires: int = Query(default=3600, ge=60, le=86400, description="URL expiry in seconds"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get a presigned URL for streaming or downloading a media file.
+
+    The URL is temporary and expires after the specified duration (default 1 hour).
+    """
+    media = media_service.get_media(db, media_id=media_id)
+    if media is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Media not found"
+        )
+
+    if media.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this media",
+        )
+
+    url = media_service.get_media_url(media, expires=expires)
+    if url is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Media file not available in storage",
+        )
+
+    return MediaURLResponse(media_id=media.id, url=url, expires_in=expires)
 
 
 @router.delete("/{media_id}", status_code=status.HTTP_204_NO_CONTENT)
