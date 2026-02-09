@@ -19,7 +19,7 @@ export const mediaService = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
-      timeout: 600000, // 10 minutes for large file uploads
+      timeout: 3600000, // 60 minutes for large file uploads (multi-GB)
       onUploadProgress: progressEvent => {
         if (onProgress && progressEvent.total) {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)

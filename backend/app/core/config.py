@@ -64,11 +64,11 @@ class Settings(BaseSettings):
     TWITTER_ACCESS_TOKEN: str = ""
     TWITTER_ACCESS_SECRET: str = ""
 
-    # CORS - Allow all origins in development
-    ## ALLOWED_ORIGINS: List[str] = ["*"]
+    # CORS
+    ALLOWED_ORIGINS: List[str] = ["*"]
 
     # File Upload
-    MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500MB
+    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 * 1024  # 10GB
     ALLOWED_VIDEO_FORMATS: List[str] = [".mp4", ".mov", ".avi", ".mkv", ".webm"]
     ALLOWED_AUDIO_FORMATS: List[str] = [".mp3", ".wav", ".m4a", ".flac", ".aac"]
 
