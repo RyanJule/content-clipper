@@ -1,4 +1,4 @@
-import { FileAudio, FileVideo, Play, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { FileAudio, FileVideo, Play, RefreshCw, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useApi } from '../hooks/useApi'
@@ -11,6 +11,9 @@ export default function MediaLibrary() {
   const { loading, execute } = useApi()
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [playerMedia, setPlayerMedia] = useState(null)
+  const [playerUrl, setPlayerUrl] = useState(null)
+  const [loadingUrl, setLoadingUrl] = useState(false)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -79,6 +82,25 @@ export default function MediaLibrary() {
       console.error('Delete error:', error)
       toast.error('Failed to delete media')
     }
+  }
+
+  const handleView = async item => {
+    setLoadingUrl(true)
+    try {
+      const data = await mediaService.getStreamUrl(item.id)
+      setPlayerMedia(item)
+      setPlayerUrl(data.url)
+    } catch (error) {
+      console.error('Failed to get stream URL:', error)
+      toast.error('Failed to load media for playback')
+    } finally {
+      setLoadingUrl(false)
+    }
+  }
+
+  const closePlayer = () => {
+    setPlayerMedia(null)
+    setPlayerUrl(null)
   }
 
   return (
@@ -197,9 +219,13 @@ export default function MediaLibrary() {
                 </div>
 
                 <div className="mt-4 flex space-x-2">
-                  <button className="flex-1 btn btn-secondary text-sm py-1.5">
+                  <button
+                    onClick={() => handleView(item)}
+                    disabled={loadingUrl}
+                    className="flex-1 btn btn-secondary text-sm py-1.5"
+                  >
                     <Play className="w-4 h-4 inline mr-1" />
-                    View
+                    {loadingUrl ? 'Loading...' : 'View'}
                   </button>
                   <button onClick={() => handleDelete(item.id)} className="btn btn-danger text-sm py-1.5 px-3">
                     <Trash2 className="w-4 h-4" />
@@ -208,6 +234,40 @@ export default function MediaLibrary() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {playerMedia && playerUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900 truncate">
+                {playerMedia.original_filename}
+              </h3>
+              <button
+                onClick={closePlayer}
+                className="p-1 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="p-4">
+              {playerMedia.media_type === 'video' ? (
+                <video
+                  src={playerUrl}
+                  controls
+                  autoPlay
+                  className="w-full max-h-[70vh] rounded"
+                >
+                  Your browser does not support video playback.
+                </video>
+              ) : (
+                <audio src={playerUrl} controls autoPlay className="w-full">
+                  Your browser does not support audio playback.
+                </audio>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

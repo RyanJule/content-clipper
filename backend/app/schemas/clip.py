@@ -47,3 +47,9 @@ class Clip(ClipBase):
 
     class Config:
         from_attributes = True
+
+
+class ClipURLResponse(BaseModel):
+    clip_id: int
+    url: str
+    expires_in: int  # seconds until URL expires

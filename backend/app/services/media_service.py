@@ -18,6 +18,14 @@ logger = logging.getLogger(__name__)
 UPLOAD_DIR = Path("/app/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+# MinIO object key prefix for media files
+MEDIA_OBJECT_PREFIX = "media/"
+
+
+def _media_object_key(filename: str) -> str:
+    """Build the MinIO object key for a media file."""
+    return f"{MEDIA_OBJECT_PREFIX}{filename}"
+
 
 def get_media(db: Session, media_id: int) -> Optional[Media]:
     """Get media by ID"""
@@ -31,6 +39,20 @@ def get_user_media(
     return (
         db.query(Media).filter(Media.user_id == user_id).offset(skip).limit(limit).all()
     )
+
+
+def get_media_url(media: Media, expires: int = 3600) -> Optional[str]:
+    """Generate a presigned URL for streaming/downloading a media file.
+
+    Args:
+        media: The Media database object.
+        expires: URL lifetime in seconds (default 1 hour).
+
+    Returns:
+        A presigned URL string, or None if the file is not in object storage.
+    """
+    object_key = _media_object_key(media.filename)
+    return minio_client.get_presigned_url(object_key, expires=expires)
 
 
 async def upload_media(
@@ -52,7 +74,7 @@ async def upload_media(
     unique_filename = f"{uuid.uuid4()}{file_ext}"
     file_path = UPLOAD_DIR / unique_filename
 
-    # Save file locally
+    # Save file locally first (needed for processing pipelines)
     try:
         contents = await file.read()
         with open(file_path, "wb") as f:
@@ -73,6 +95,15 @@ async def upload_media(
             os.remove(file_path)
         raise
 
+    # Upload to MinIO for durable storage and presigned URL serving
+    content_type = file.content_type or "application/octet-stream"
+    object_key = _media_object_key(unique_filename)
+    uploaded = minio_client.upload_file(
+        str(file_path), object_key, content_type=content_type
+    )
+    if not uploaded:
+        logger.error(f"Failed to upload {unique_filename} to MinIO")
+
     # Create database record
     db_media = Media(
         user_id=user_id,
@@ -80,7 +111,7 @@ async def upload_media(
         original_filename=file.filename,
         file_path=str(file_path),
         file_size=file_size,
-        mime_type=file.content_type or "application/octet-stream",
+        mime_type=content_type,
         media_type=media_type,
         status=MediaStatus.PROCESSING,
     )
@@ -109,12 +140,19 @@ def delete_media(db: Session, media_id: int) -> bool:
     if not db_media:
         return False
 
-    # Delete physical file
+    # Delete from MinIO
+    object_key = _media_object_key(db_media.filename)
+    try:
+        minio_client.delete_file(object_key)
+    except Exception as e:
+        logger.error(f"Error deleting file from MinIO: {e}")
+
+    # Delete local file
     try:
         if os.path.exists(db_media.file_path):
             os.remove(db_media.file_path)
     except Exception as e:
-        logger.error(f"Error deleting file: {e}")
+        logger.error(f"Error deleting local file: {e}")
 
     # Delete from database
     db.delete(db_media)

@@ -1,5 +1,6 @@
-import { Edit2, Play, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { Edit2, Play, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import CreateClipModal from '../components/Clips/CreateClipModal'
 import { useApi } from '../hooks/useApi'
 import { clipService } from '../services/clipService'
@@ -12,6 +13,9 @@ export default function ClipsManager() {
   const { loading, execute } = useApi()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [media, setMedia] = useState([])
+  const [playerClip, setPlayerClip] = useState(null)
+  const [playerUrl, setPlayerUrl] = useState(null)
+  const [loadingUrl, setLoadingUrl] = useState(false)
 
   useEffect(() => {
     loadClips()
@@ -65,6 +69,25 @@ export default function ClipsManager() {
     )
   }
 
+  const handlePlay = async clip => {
+    setLoadingUrl(true)
+    try {
+      const data = await clipService.getStreamUrl(clip.id)
+      setPlayerClip(clip)
+      setPlayerUrl(data.url)
+    } catch (error) {
+      console.error('Failed to get clip stream URL:', error)
+      toast.error('Failed to load clip for playback')
+    } finally {
+      setLoadingUrl(false)
+    }
+  }
+
+  const closePlayer = () => {
+    setPlayerClip(null)
+    setPlayerUrl(null)
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -106,9 +129,14 @@ export default function ClipsManager() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg flex items-center justify-center">
+                    <button
+                      onClick={() => handlePlay(clip)}
+                      disabled={loadingUrl || clip.status !== 'ready'}
+                      className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg flex items-center justify-center hover:from-purple-200 hover:to-purple-300 transition-colors disabled:opacity-50"
+                      title={clip.status === 'ready' ? 'Play clip' : 'Clip not ready'}
+                    >
                       <Play className="w-6 h-6 text-purple-600" />
-                    </div>
+                    </button>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
                         {clip.title || 'Untitled Clip'}
@@ -172,6 +200,34 @@ export default function ClipsManager() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {playerClip && playerUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900 truncate">
+                {playerClip.title || 'Untitled Clip'}
+              </h3>
+              <button
+                onClick={closePlayer}
+                className="p-1 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="p-4">
+              <video
+                src={playerUrl}
+                controls
+                autoPlay
+                className="w-full max-h-[70vh] rounded"
+              >
+                Your browser does not support video playback.
+              </video>
+            </div>
+          </div>
         </div>
       )}
 
