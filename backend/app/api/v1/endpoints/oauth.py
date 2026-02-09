@@ -1,5 +1,6 @@
 # backend/app/api/v1/endpoints/oauth.py
 import json
+import logging
 import secrets
 from typing import Optional
 from urllib.parse import quote
@@ -12,8 +13,15 @@ from sqlalchemy.orm import Session
 from app.core.auth import get_current_active_user
 from app.core.config import settings
 from app.core.database import get_db
+from app.models.account import Account
 from app.models.user import User
-from app.services.oauth_service import get_oauth_provider, save_oauth_tokens
+from app.services.oauth_service import (
+    get_oauth_provider,
+    refresh_account_token,
+    save_oauth_tokens,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -162,8 +170,23 @@ async def oauth_callback(
         provider = get_oauth_provider(platform)
         token_data = await provider.exchange_code_for_token(code)
 
-        # Get user info from platform
         access_token = token_data.get("access_token")
+
+        # Instagram/Facebook: exchange short-lived token for a long-lived token
+        if platform == "instagram":
+            try:
+                long_lived_data = await provider.exchange_for_long_lived_token(access_token)
+                token_data["access_token"] = long_lived_data["access_token"]
+                token_data["expires_in"] = long_lived_data.get("expires_in")
+                access_token = long_lived_data["access_token"]
+                logger.info("Exchanged for long-lived Instagram token")
+            except Exception as e:
+                logger.warning(
+                    f"Failed to exchange for long-lived token, "
+                    f"continuing with short-lived token: {e}"
+                )
+
+        # Get user info from platform
         user_info = await provider.get_user_info(access_token)
 
         logger.info(f"Got user info for {platform}: {user_info.get('username')}")
@@ -255,6 +278,58 @@ async def oauth_status(
         "is_expired": is_expired,
         "connected_at": account.connected_at,
         "token_expires_at": account.token_expires_at,
+    }
+
+
+@router.post("/{platform}/refresh-token")
+async def oauth_refresh_token(
+    platform: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Manually refresh the access token for a connected account.
+
+    For Instagram/Facebook this refreshes the long-lived user token and
+    updates the associated page access token. For other platforms it uses
+    the standard refresh_token grant.
+
+    The token is also refreshed automatically when it's close to expiry
+    (see get_valid_access_token), but this endpoint allows the frontend
+    to trigger a refresh explicitly—for example, after the user notices
+    a token-related error.
+    """
+    account = (
+        db.query(Account)
+        .filter(
+            Account.user_id == current_user.id,
+            Account.platform == platform,
+        )
+        .first()
+    )
+
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    if not account.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail="Account is deactivated. Please reconnect via OAuth.",
+        )
+
+    try:
+        account = await refresh_account_token(db, account)
+    except Exception as e:
+        logger.error(f"Token refresh failed for {platform}: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to refresh token: {e}",
+        )
+
+    return {
+        "message": f"{platform} token refreshed successfully",
+        "platform": platform,
+        "token_expires_at": account.token_expires_at.isoformat() if account.token_expires_at else None,
     }
 
 
