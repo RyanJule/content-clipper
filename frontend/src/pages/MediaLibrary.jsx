@@ -37,9 +37,9 @@ export default function MediaLibrary() {
 
     console.log('Selected file:', file.name, file.type, file.size)
 
-    const maxSize = 500 * 1024 * 1024 // 500MB
+    const maxSize = 10 * 1024 * 1024 * 1024 // 10GB
     if (file.size > maxSize) {
-      toast.error('File size must be less than 500MB')
+      toast.error('File size must be less than 10GB')
       return
     }
 
