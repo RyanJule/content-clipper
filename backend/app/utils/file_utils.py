@@ -20,6 +20,12 @@ def is_audio_file(filename: str) -> bool:
     return get_file_extension(filename) in audio_extensions
 
 
+def is_image_file(filename: str) -> bool:
+    """Check if file is an image"""
+    image_extensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]
+    return get_file_extension(filename) in image_extensions
+
+
 def ensure_directory_exists(directory: str) -> Path:
     """Ensure a directory exists, create if it doesn't"""
     path = Path(directory)

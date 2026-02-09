@@ -10,6 +10,7 @@ from app.core.database import Base
 class MediaType(str, enum.Enum):
     VIDEO = "video"
     AUDIO = "audio"
+    IMAGE = "image"
 
 
 class MediaStatus(str, enum.Enum):
