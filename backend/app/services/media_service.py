@@ -76,11 +76,11 @@ async def upload_media(
 
     # Save file locally first (needed for processing pipelines)
     try:
-        contents = await file.read()
+        file_size = 0
         with open(file_path, "wb") as f:
-            f.write(contents)
-
-        file_size = len(contents)
+            while chunk := await file.read(1024 * 1024):  # 1MB chunks
+                f.write(chunk)
+                file_size += len(chunk)
 
         # Validate file size
         if file_size > settings.MAX_UPLOAD_SIZE:

@@ -37,7 +37,12 @@ api.interceptors.response.use(
   },
   error => {
     console.error('API Response Error:', error.response?.status, error.config?.url)
-    
+
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      toast.error('Request timed out - the file may be too large or the connection is slow')
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 401) {
       // Clear auth data and redirect to login
       localStorage.removeItem('auth_token')
