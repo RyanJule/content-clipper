@@ -103,6 +103,12 @@ async def upload_media(
     )
     if not uploaded:
         logger.error(f"Failed to upload {unique_filename} to MinIO")
+        if file_path.exists():
+            os.remove(file_path)
+        raise RuntimeError(
+            f"Failed to store {file.filename} in object storage. "
+            "The storage backend may be unavailable."
+        )
 
     # Create database record
     db_media = Media(

@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     ## ALLOWED_ORIGINS: List[str] = ["*"]
 
     # File Upload
-    MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500MB
+    MAX_UPLOAD_SIZE: int = 5 * 1024 * 1024 * 1024  # 5GB
     ALLOWED_VIDEO_FORMATS: List[str] = [".mp4", ".mov", ".avi", ".mkv", ".webm"]
     ALLOWED_AUDIO_FORMATS: List[str] = [".mp3", ".wav", ".m4a", ".flac", ".aac"]
 
