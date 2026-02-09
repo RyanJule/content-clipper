@@ -112,6 +112,7 @@ class InstagramOAuth(OAuthProvider):
             self.scope = [
                 "public_profile",                           # Public profile info
                 "pages_show_list",                          # List pages
+                "business_management",                      # Manage business assets
             ]
         else:
             # All permissions required for full Instagram functionality
