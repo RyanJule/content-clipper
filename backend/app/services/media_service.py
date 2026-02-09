@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+import aiofiles
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
@@ -77,9 +78,9 @@ async def upload_media(
     # Save file locally first (needed for processing pipelines)
     try:
         file_size = 0
-        with open(file_path, "wb") as f:
+        async with aiofiles.open(file_path, "wb") as f:
             while chunk := await file.read(1024 * 1024):  # 1MB chunks
-                f.write(chunk)
+                await f.write(chunk)
                 file_size += len(chunk)
 
         # Validate file size
@@ -103,6 +104,12 @@ async def upload_media(
     )
     if not uploaded:
         logger.error(f"Failed to upload {unique_filename} to MinIO")
+        if file_path.exists():
+            os.remove(file_path)
+        raise RuntimeError(
+            f"Failed to store {file.filename} in object storage. "
+            "The storage backend may be unavailable."
+        )
 
     # Create database record
     db_media = Media(
