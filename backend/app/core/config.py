@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 * 1024  # 10GB
     ALLOWED_VIDEO_FORMATS: List[str] = [".mp4", ".mov", ".avi", ".mkv", ".webm"]
     ALLOWED_AUDIO_FORMATS: List[str] = [".mp3", ".wav", ".m4a", ".flac", ".aac"]
+    ALLOWED_IMAGE_FORMATS: List[str] = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]
 
     class Config:
         env_file = ".env"

@@ -1,4 +1,4 @@
-import { FileAudio, FileVideo, Play, RefreshCw, Trash2, Upload, X } from 'lucide-react'
+import { FileAudio, FileImage, FileVideo, Play, RefreshCw, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useApi } from '../hooks/useApi'
@@ -108,7 +108,7 @@ export default function MediaLibrary() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-3xl font-bold text-gray-900">Media Library</h2>
-          <p className="text-gray-600 mt-1">Upload and manage your video and audio files</p>
+          <p className="text-gray-600 mt-1">Upload and manage your video, audio, and image files</p>
         </div>
         <div className="flex items-center space-x-3">
           <button
@@ -125,7 +125,7 @@ export default function MediaLibrary() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="video/*,audio/*"
+              accept="video/*,audio/*,image/*"
               onChange={handleFileUpload}
               disabled={uploading}
               className="hidden"
@@ -158,13 +158,13 @@ export default function MediaLibrary() {
         <div className="card p-12 text-center">
           <FileVideo className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No media files yet</h3>
-          <p className="text-gray-600 mb-6">Upload your first video or audio file to get started</p>
+          <p className="text-gray-600 mb-6">Upload your first video, audio, or image file to get started</p>
           <label className="btn btn-primary inline-flex items-center space-x-2 cursor-pointer">
             <Upload className="w-5 h-5" />
             <span>Upload Media</span>
             <input
               type="file"
-              accept="video/*,audio/*"
+              accept="video/*,audio/*,image/*"
               onChange={handleFileUpload}
               className="hidden"
             />
@@ -177,6 +177,8 @@ export default function MediaLibrary() {
               <div className="aspect-video bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
                 {item.media_type === 'video' ? (
                   <FileVideo className="w-16 h-16 text-primary-600" />
+                ) : item.media_type === 'image' ? (
+                  <FileImage className="w-16 h-16 text-primary-600" />
                 ) : (
                   <FileAudio className="w-16 h-16 text-primary-600" />
                 )}
@@ -261,6 +263,12 @@ export default function MediaLibrary() {
                 >
                   Your browser does not support video playback.
                 </video>
+              ) : playerMedia.media_type === 'image' ? (
+                <img
+                  src={playerUrl}
+                  alt={playerMedia.original_filename}
+                  className="w-full max-h-[70vh] object-contain rounded"
+                />
               ) : (
                 <audio src={playerUrl} controls autoPlay className="w-full">
                   Your browser does not support audio playback.

@@ -68,6 +68,8 @@ async def upload_media(
         media_type = MediaType.VIDEO
     elif file_ext in settings.ALLOWED_AUDIO_FORMATS:
         media_type = MediaType.AUDIO
+    elif file_ext in settings.ALLOWED_IMAGE_FORMATS:
+        media_type = MediaType.IMAGE
     else:
         raise ValueError(f"Unsupported file format: {file_ext}")
 

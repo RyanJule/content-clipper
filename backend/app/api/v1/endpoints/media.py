@@ -20,7 +20,7 @@ async def upload_media(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Upload a video or audio file"""
+    """Upload a video, audio, or image file"""
     try:
         result = await media_service.upload_media(db, file, current_user.id)
         return result
