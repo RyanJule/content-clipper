@@ -147,6 +147,94 @@ class InstagramOAuth(OAuthProvider):
         }
         return f"{self.authorization_url}?{urlencode(params)}"
 
+    async def exchange_for_long_lived_token(self, short_lived_token: str) -> Dict:
+        """
+        Exchange a short-lived user token for a long-lived token (~60 days).
+
+        Facebook/Instagram uses the fb_exchange_token grant type instead of
+        traditional refresh tokens. This should be called right after the
+        initial OAuth code exchange.
+        """
+        params = {
+            "grant_type": "fb_exchange_token",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "fb_exchange_token": short_lived_token,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(self.token_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            logger.info(
+                "Exchanged short-lived token for long-lived token "
+                f"(expires_in={data.get('expires_in')}s)"
+            )
+            return data
+
+    async def refresh_access_token(self, access_token: str) -> Dict:
+        """
+        Refresh a long-lived Facebook/Instagram token.
+
+        Instagram does not use refresh_token grants. Instead, valid long-lived
+        tokens are refreshed by exchanging them again via fb_exchange_token.
+        The token must not be expired — refresh before the ~60 day expiry.
+
+        Args:
+            access_token: The current long-lived token (NOT a refresh token).
+
+        Returns:
+            Dict with access_token, token_type, and expires_in.
+        """
+        params = {
+            "grant_type": "fb_exchange_token",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "fb_exchange_token": access_token,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(self.token_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            logger.info(
+                "Refreshed long-lived Instagram token "
+                f"(expires_in={data.get('expires_in')}s)"
+            )
+            return data
+
+    async def refresh_page_access_token(self, user_access_token: str, page_id: str) -> Optional[str]:
+        """
+        Retrieve a fresh page access token using the refreshed user token.
+
+        Page tokens derived from long-lived user tokens are themselves
+        long-lived (non-expiring for pages you manage).
+
+        Args:
+            user_access_token: A valid long-lived user access token.
+            page_id: The Facebook Page ID.
+
+        Returns:
+            The page access token, or None if the page wasn't found.
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://graph.facebook.com/v18.0/me/accounts",
+                params={
+                    "fields": "id,access_token",
+                    "access_token": user_access_token,
+                },
+            )
+            response.raise_for_status()
+            pages = response.json().get("data", [])
+
+            for page in pages:
+                if page["id"] == page_id:
+                    return page.get("access_token")
+
+        logger.warning(f"Page {page_id} not found when refreshing page token")
+        return None
+
     async def get_user_info(self, access_token: str) -> Dict:
         """
         Get Facebook user profile and Instagram Business Account
@@ -424,53 +512,119 @@ async def save_oauth_tokens(
 
 
 async def refresh_account_token(db: Session, account: Account) -> Account:
-    """Refresh an expired access token"""
+    """Refresh an expired access token.
+
+    For Instagram/Facebook, the long-lived access token is refreshed via
+    fb_exchange_token (no refresh_token involved). For other providers,
+    the standard refresh_token grant is used.
+    """
     provider = get_oauth_provider(account.platform)
 
-    refresh_token = decrypt_token(account.refresh_token_enc)
-    if not refresh_token:
-        raise ValueError("No refresh token available")
+    if account.platform == "instagram":
+        # Instagram: refresh the long-lived user token, then update the page token
+        access_token = decrypt_token(account.access_token_enc)
+        if not access_token:
+            raise ValueError("No access token available for Instagram refresh")
 
-    try:
-        token_data = await provider.refresh_access_token(refresh_token)
+        try:
+            token_data = await provider.refresh_access_token(access_token)
 
-        # Update account with new tokens
-        account.access_token_enc = encrypt_token(token_data.get("access_token"))
+            new_access_token = token_data.get("access_token")
+            account.access_token_enc = encrypt_token(new_access_token)
 
-        # Some providers return a new refresh token
-        if token_data.get("refresh_token"):
-            account.refresh_token_enc = encrypt_token(token_data["refresh_token"])
+            expires_in = token_data.get("expires_in")
+            if expires_in:
+                account.token_expires_at = datetime.utcnow() + timedelta(
+                    seconds=int(expires_in)
+                )
 
-        # Update expiration
-        expires_in = token_data.get("expires_in")
-        if expires_in:
-            account.token_expires_at = datetime.utcnow() + timedelta(
-                seconds=int(expires_in)
+            # Refresh the page access token stored in meta_info
+            meta_info = account.meta_info or {}
+            page_id = meta_info.get("facebook_page_id")
+            if page_id:
+                page_token = await provider.refresh_page_access_token(
+                    new_access_token, page_id
+                )
+                if page_token:
+                    meta_info["access_token"] = page_token
+                    account.meta_info = meta_info
+                else:
+                    logger.warning(
+                        f"Could not refresh page token for account {account.id}"
+                    )
+
+            db.commit()
+            db.refresh(account)
+
+            logger.info(
+                f"Refreshed Instagram token for account {account.id}"
             )
+            return account
 
-        db.commit()
-        db.refresh(account)
+        except Exception as e:
+            logger.error(
+                f"Failed to refresh Instagram token for account {account.id}: {e}"
+            )
+            account.is_active = False
+            db.commit()
+            raise
+    else:
+        # Standard OAuth refresh_token flow (YouTube, LinkedIn, TikTok)
+        refresh_token = decrypt_token(account.refresh_token_enc)
+        if not refresh_token:
+            raise ValueError("No refresh token available")
 
-        logger.info(f"Refreshed token for account {account.id} ({account.platform})")
-        return account
+        try:
+            token_data = await provider.refresh_access_token(refresh_token)
 
-    except Exception as e:
-        logger.error(f"Failed to refresh token for account {account.id}: {e}")
-        account.is_active = False
-        db.commit()
-        raise
+            account.access_token_enc = encrypt_token(token_data.get("access_token"))
+
+            if token_data.get("refresh_token"):
+                account.refresh_token_enc = encrypt_token(token_data["refresh_token"])
+
+            expires_in = token_data.get("expires_in")
+            if expires_in:
+                account.token_expires_at = datetime.utcnow() + timedelta(
+                    seconds=int(expires_in)
+                )
+
+            db.commit()
+            db.refresh(account)
+
+            logger.info(
+                f"Refreshed token for account {account.id} ({account.platform})"
+            )
+            return account
+
+        except Exception as e:
+            logger.error(f"Failed to refresh token for account {account.id}: {e}")
+            account.is_active = False
+            db.commit()
+            raise
 
 
 def get_valid_access_token(db: Session, account: Account) -> str:
-    """Get a valid access token, refreshing if necessary"""
-    # Check if token is expired or about to expire (within 5 minutes)
+    """Get a valid access token, refreshing if necessary.
+
+    For Instagram accounts, the page access token from meta_info is returned
+    (used for Graph API calls). The user token is refreshed transparently
+    when approaching expiry, and the page token is updated alongside it.
+    """
     if account.token_expires_at:
         now = datetime.utcnow()
-        buffer_time = timedelta(minutes=5)
+        # Use a larger buffer for Instagram to avoid last-minute failures
+        buffer_time = timedelta(days=7) if account.platform == "instagram" else timedelta(minutes=5)
         if now + buffer_time >= account.token_expires_at:
-            logger.info(f"Token expired for account {account.id}, refreshing...")
+            logger.info(f"Token expiring soon for account {account.id}, refreshing...")
             import asyncio
 
             account = asyncio.run(refresh_account_token(db, account))
+
+    # For Instagram, prefer the page access token from meta_info
+    if account.platform == "instagram":
+        meta_info = account.meta_info or {}
+        page_token = meta_info.get("access_token")
+        if page_token:
+            return page_token
 
     return decrypt_token(account.access_token_enc)
