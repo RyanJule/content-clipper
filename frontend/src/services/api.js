@@ -1,7 +1,7 @@
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://192.168.86.242:8000'
+const API_URL = (import.meta.env.VITE_API_URL || 'http://192.168.86.242:8000').replace(/\/+$/, '')
 
 console.log('API URL:', API_URL)
 
@@ -52,6 +52,8 @@ api.interceptors.response.use(
         toast.error('Session expired - please log in again')
         window.location.href = '/login'
       }
+    } else if (error.response?.status === 413) {
+      toast.error('File is too large to upload')
     } else if (error.response?.status === 403) {
       toast.error('Access denied')
     } else if (error.response?.status === 404) {
