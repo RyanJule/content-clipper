@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -239,7 +240,6 @@ async def _publish_to_instagram(
 
             # Wait for video to be ready (check status)
             # In production, this should be handled by a background task
-            import asyncio
             max_attempts = 30
             for attempt in range(max_attempts):
                 status_result = await ig_api.check_container_status(container_id)
@@ -255,6 +255,84 @@ async def _publish_to_instagram(
 
                 if attempt == max_attempts - 1:
                     raise InstagramGraphAPIError("Video processing timeout")
+        elif media_type == 'carousel':
+            # Carousel: create child containers, then carousel container
+            carousel_urls = getattr(clip, 'carousel_media_urls', [])
+            carousel_types = getattr(clip, 'carousel_media_types', [])
+
+            if not carousel_urls or len(carousel_urls) < 2:
+                raise ValueError("Carousel requires at least 2 media items")
+
+            if len(carousel_urls) > 10:
+                raise ValueError("Carousel supports a maximum of 10 media items")
+
+            # Create child containers (captions only on parent)
+            children_ids = []
+            for i, url in enumerate(carousel_urls):
+                child_type = carousel_types[i] if i < len(carousel_types) else 'image'
+
+                if child_type in ('image', 'photo'):
+                    child_id = await ig_api.create_image_container(
+                        ig_account_id=ig_account_id,
+                        image_url=url,
+                    )
+                elif child_type == 'video':
+                    child_id = await ig_api.create_video_container(
+                        ig_account_id=ig_account_id,
+                        video_url=url,
+                    )
+                    # Wait for video child to be ready
+                    max_attempts = 30
+                    for attempt in range(max_attempts):
+                        status_result = await ig_api.check_container_status(child_id)
+                        status_code = status_result.get("status_code")
+                        if status_code == "FINISHED":
+                            break
+                        elif status_code == "ERROR":
+                            raise InstagramGraphAPIError(
+                                f"Carousel video processing failed: {status_result.get('status')}"
+                            )
+                        await asyncio.sleep(2)
+                        if attempt == max_attempts - 1:
+                            raise InstagramGraphAPIError("Carousel video processing timeout")
+                else:
+                    raise ValueError(f"Unsupported carousel child media type: {child_type}")
+
+                children_ids.append(child_id)
+
+            # Create carousel container with caption on the parent
+            container_id = await ig_api.create_carousel_container(
+                ig_account_id=ig_account_id,
+                children=children_ids,
+                caption=caption,
+            )
+
+        elif media_type == 'story':
+            # Stories: determine if image or video story
+            story_media_type = getattr(clip, 'story_media_type', 'IMAGE').upper()
+
+            container_id = await ig_api.create_story_container(
+                ig_account_id=ig_account_id,
+                media_url=media_url,
+                media_type=story_media_type,
+            )
+
+            # For video stories, wait for processing
+            if story_media_type == "VIDEO":
+                max_attempts = 30
+                for attempt in range(max_attempts):
+                    status_result = await ig_api.check_container_status(container_id)
+                    status_code = status_result.get("status_code")
+                    if status_code == "FINISHED":
+                        break
+                    elif status_code == "ERROR":
+                        raise InstagramGraphAPIError(
+                            f"Story video processing failed: {status_result.get('status')}"
+                        )
+                    await asyncio.sleep(2)
+                    if attempt == max_attempts - 1:
+                        raise InstagramGraphAPIError("Story video processing timeout")
+
         else:
             raise ValueError(f"Unsupported media type: {media_type}")
 
