@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     TWITTER_ACCESS_SECRET: str = ""
 
     # CORS - Allow all origins in development
-    ## ALLOWED_ORIGINS: List[str] = ["*"]
+    ALLOWED_ORIGINS: List[str] = ["*"]
 
     # File Upload
     MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500MB
