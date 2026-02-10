@@ -15,6 +15,7 @@ import Register from './pages/Register'
 import Schedules from './pages/Schedules'
 import SocialScheduler from './pages/SocialScheduler'
 import TermsOfService from './pages/TermsOfService'
+import TikTokStudio from './pages/TikTokStudio'
 import YouTubeStudio from './pages/YouTubeStudio'
 import { useStore } from './store'
 
@@ -56,6 +57,7 @@ function App() {
           <Route path="clips" element={<ClipsManager />} />
           <Route path="social" element={<SocialScheduler />} />
           <Route path="youtube" element={<YouTubeStudio />} />
+          <Route path="tiktok" element={<TikTokStudio />} />
           <Route path="instagram" element={<InstagramDashboard />} />
         </Route>
 

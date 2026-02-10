@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     oauth,
     schedules,
     social,
+    tiktok,
     users,
     youtube,
 )
@@ -30,4 +31,5 @@ api_router.include_router(schedules.router, prefix="/schedules", tags=["schedule
 api_router.include_router(social.router, prefix="/social", tags=["social"])
 api_router.include_router(instagram.router, prefix="/instagram", tags=["instagram"])
 api_router.include_router(youtube.router, prefix="/youtube", tags=["youtube"])
+api_router.include_router(tiktok.router, prefix="/tiktok", tags=["tiktok"])
 api_router.include_router(data_deletion.router, prefix="/oauth", tags=["data-deletion"])

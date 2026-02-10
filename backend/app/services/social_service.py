@@ -19,6 +19,11 @@ from app.services.youtube_service import (
     YouTubeAPIError,
     create_youtube_service,
 )
+from app.services.tiktok_service import (
+    TikTokService,
+    TikTokAPIError,
+    create_tiktok_service,
+)
 from app.core.crypto import decrypt_token
 
 logger = logging.getLogger(__name__)
@@ -140,6 +145,8 @@ async def publish_post(db: Session, post_id: int) -> dict:
             result = await _publish_to_instagram(db_post, clip, account)
         elif db_post.platform == SocialPlatform.YOUTUBE:
             result = await _publish_to_youtube(db_post, clip, account)
+        elif db_post.platform == SocialPlatform.TIKTOK:
+            result = await _publish_to_tiktok(db_post, clip, account)
         else:
             # For other platforms, use mock implementation for now
             result = {
@@ -473,3 +480,117 @@ async def _publish_to_youtube(
         raise
     finally:
         await yt_api.close()
+
+
+async def _publish_to_tiktok(
+    post: SocialPost,
+    clip,
+    account: Account,
+) -> dict:
+    """
+    Publish a post to TikTok using the Content Posting API.
+
+    Supports:
+    - Video posts (via file upload or URL)
+    - Photo posts (via URL)
+
+    Args:
+        post: Social post object
+        clip: Clip object containing media
+        account: Connected TikTok account
+
+    Returns:
+        Dictionary with platform_post_id and platform_url
+    """
+    access_token = decrypt_token(account.access_token_enc)
+    if not access_token:
+        raise ValueError("Invalid TikTok access token")
+
+    tt_api = create_tiktok_service(access_token)
+
+    try:
+        # Prepare caption with hashtags
+        caption = post.caption or ""
+        if post.hashtags:
+            hashtags_list = json.loads(post.hashtags) if isinstance(post.hashtags, str) else post.hashtags
+            caption = f"{caption}\n\n{' '.join(hashtags_list)}"
+
+        # Determine media type and publish accordingly
+        media_type = getattr(clip, 'media_type', 'video').lower()
+        file_path = getattr(clip, 'file_path', None)
+        media_url = getattr(clip, 'media_url', None)
+
+        if media_type in ('video', 'reel'):
+            # Video post
+            if file_path:
+                result = await tt_api.upload_video_file(
+                    file_path=file_path,
+                    title=caption,
+                    privacy_level="PUBLIC_TO_EVERYONE",
+                )
+            elif media_url:
+                result = await tt_api.publish_video_by_url(
+                    video_url=media_url,
+                    title=caption,
+                    privacy_level="PUBLIC_TO_EVERYONE",
+                )
+            else:
+                raise ValueError("Clip does not have a file path or media URL")
+
+            publish_id = result["publish_id"]
+
+            # Wait for publishing to complete
+            status_data = await tt_api.wait_for_publish(publish_id)
+            created_items = status_data.get("created_items", [])
+
+            platform_post_id = publish_id
+            platform_url = f"https://www.tiktok.com/@user/video/{publish_id}"
+
+            if created_items:
+                item_id = created_items[0].get("id", publish_id)
+                platform_post_id = item_id
+                platform_url = f"https://www.tiktok.com/@user/video/{item_id}"
+
+        elif media_type in ('image', 'photo'):
+            # Photo post
+            if not media_url:
+                raise ValueError("Photo post requires a media URL")
+
+            photo_urls = getattr(clip, 'carousel_media_urls', None) or [media_url]
+
+            result = await tt_api.publish_photo_post(
+                photo_urls=photo_urls,
+                title=caption,
+                privacy_level="PUBLIC_TO_EVERYONE",
+            )
+
+            publish_id = result["publish_id"]
+            status_data = await tt_api.wait_for_publish(publish_id)
+            created_items = status_data.get("created_items", [])
+
+            platform_post_id = publish_id
+            platform_url = f"https://www.tiktok.com/@user/photo/{publish_id}"
+
+            if created_items:
+                item_id = created_items[0].get("id", publish_id)
+                platform_post_id = item_id
+                platform_url = f"https://www.tiktok.com/@user/photo/{item_id}"
+
+        else:
+            raise ValueError(f"Unsupported media type for TikTok: {media_type}")
+
+        logger.info(f"Published to TikTok: {platform_post_id}")
+
+        return {
+            "platform_post_id": platform_post_id,
+            "platform_url": platform_url,
+        }
+
+    except TikTokAPIError as e:
+        logger.error(f"TikTok API error: {str(e)}")
+        raise ValueError(f"TikTok API error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to publish to TikTok: {str(e)}")
+        raise
+    finally:
+        await tt_api.close()
