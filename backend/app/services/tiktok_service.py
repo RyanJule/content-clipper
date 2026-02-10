@@ -223,13 +223,11 @@ class TikTokService:
                 "source": "PULL_FROM_URL",
                 "video_url": video_url,
             },
-            "post_mode": "DIRECT_POST",
-            "media_type": "VIDEO",
         }
 
         result = await self._make_request(
             "POST",
-            "post/publish/content/init/",
+            "post/publish/video/init/",
             json_data=body,
         )
 
@@ -304,13 +302,11 @@ class TikTokService:
         body = {
             "post_info": post_info,
             "source_info": source_info,
-            "post_mode": "DIRECT_POST",
-            "media_type": "VIDEO",
         }
 
         result = await self._make_request(
             "POST",
-            "post/publish/content/init/",
+            "post/publish/video/init/",
             json_data=body,
         )
 
@@ -611,16 +607,24 @@ class TikTokService:
                 "video_url": media_url,
             }
 
-        body = {
-            "post_info": post_info,
-            "source_info": source_info,
-            "post_mode": "DIRECT_POST",
-            "media_type": media_type.upper(),
-        }
+        if media_type.upper() == "PHOTO":
+            body = {
+                "post_info": post_info,
+                "source_info": source_info,
+                "post_mode": "DIRECT_POST",
+                "media_type": "PHOTO",
+            }
+            endpoint = "post/publish/content/init/"
+        else:
+            body = {
+                "post_info": post_info,
+                "source_info": source_info,
+            }
+            endpoint = "post/publish/video/init/"
 
         result = await self._make_request(
             "POST",
-            "post/publish/content/init/",
+            endpoint,
             json_data=body,
         )
 
@@ -662,13 +666,11 @@ class TikTokService:
         body = {
             "post_info": post_info,
             "source_info": source_info,
-            "post_mode": "DIRECT_POST",
-            "media_type": "VIDEO",
         }
 
         result = await self._make_request(
             "POST",
-            "post/publish/content/init/",
+            "post/publish/video/init/",
             json_data=body,
         )
 
