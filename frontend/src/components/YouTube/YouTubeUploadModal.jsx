@@ -1,4 +1,4 @@
-import { Film, Upload, X } from 'lucide-react'
+import { Film, Image, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { youtubeService } from '../../services/youtubeService'
@@ -12,7 +12,11 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
   const [notifySubscribers, setNotifySubscribers] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadPhase, setUploadPhase] = useState('video') // 'video' | 'thumbnail'
+  const [thumbnailFile, setThumbnailFile] = useState(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState(null)
   const fileInputRef = useRef(null)
+  const thumbnailInputRef = useRef(null)
 
   const handleFileSelect = e => {
     const selected = e.target.files[0]
@@ -37,6 +41,27 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
     }
   }
 
+  const handleThumbnailSelect = e => {
+    const selected = e.target.files[0]
+    if (!selected) return
+
+    if (!selected.type.startsWith('image/')) {
+      toast.error('Please select an image file (JPG, PNG, or GIF)')
+      return
+    }
+
+    if (selected.size > 2 * 1024 * 1024) {
+      toast.error('Thumbnail must be under 2MB')
+      return
+    }
+
+    setThumbnailFile(selected)
+
+    const reader = new FileReader()
+    reader.onload = e => setThumbnailPreview(e.target.result)
+    reader.readAsDataURL(selected)
+  }
+
   const handleUpload = async e => {
     e.preventDefault()
 
@@ -52,6 +77,7 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
 
     setUploading(true)
     setUploadProgress(0)
+    setUploadPhase('video')
 
     try {
       const metadata = {
@@ -70,10 +96,27 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
         setUploadProgress(percent)
       }
 
+      let result
       if (isShort) {
-        await youtubeService.uploadShort(file, metadata, onProgress)
+        result = await youtubeService.uploadShort(file, metadata, onProgress)
       } else {
-        await youtubeService.uploadVideo(file, metadata, onProgress)
+        result = await youtubeService.uploadVideo(file, metadata, onProgress)
+      }
+
+      // Set thumbnail if one was selected
+      if (thumbnailFile && result.video_id) {
+        setUploadPhase('thumbnail')
+        setUploadProgress(0)
+        try {
+          await youtubeService.setThumbnail(result.video_id, thumbnailFile)
+        } catch (thumbError) {
+          console.error('Thumbnail upload failed:', thumbError)
+          toast.error(
+            'Video uploaded successfully, but thumbnail failed to set. You can set it later from the video list.'
+          )
+          onSuccess()
+          return
+        }
       }
 
       onSuccess()
@@ -231,6 +274,52 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
             </label>
           </div>
 
+          {/* Thumbnail */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Custom Thumbnail <span className="text-gray-500">(optional)</span>
+            </label>
+            <input
+              type="file"
+              ref={thumbnailInputRef}
+              accept="image/jpeg,image/png,image/gif"
+              onChange={handleThumbnailSelect}
+              className="hidden"
+            />
+            {thumbnailPreview ? (
+              <div className="relative">
+                <img
+                  src={thumbnailPreview}
+                  alt="Thumbnail preview"
+                  className="w-full rounded-lg border border-gray-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setThumbnailFile(null)
+                    setThumbnailPreview(null)
+                    if (thumbnailInputRef.current) thumbnailInputRef.current.value = ''
+                  }}
+                  className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
+                  disabled={uploading}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => thumbnailInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-red-400 transition-colors"
+                disabled={uploading}
+              >
+                <Image className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                <p className="text-sm text-gray-600">Click to select a thumbnail image</p>
+                <p className="text-xs text-gray-400 mt-1">1280x720 recommended, max 2MB. JPG, PNG, or GIF.</p>
+              </button>
+            )}
+          </div>
+
           {isShort && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
               <p className="text-sm text-yellow-800">
@@ -244,13 +333,17 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
           {uploading && (
             <div>
               <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                <span>Uploading...</span>
-                <span>{uploadProgress}%</span>
+                <span>
+                  {uploadPhase === 'thumbnail' ? 'Setting thumbnail...' : 'Uploading video...'}
+                </span>
+                {uploadPhase === 'video' && <span>{uploadProgress}%</span>}
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-red-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
+                  style={{
+                    width: uploadPhase === 'thumbnail' ? '100%' : `${uploadProgress}%`,
+                  }}
                 />
               </div>
             </div>
