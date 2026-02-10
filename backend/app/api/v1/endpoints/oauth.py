@@ -66,6 +66,10 @@ async def debug_oauth_config():
             "client_id": "SET" if settings.LINKEDIN_CLIENT_ID else "NOT SET",
             "client_secret": "SET" if settings.LINKEDIN_CLIENT_SECRET else "NOT SET",
         },
+        "tiktok": {
+            "client_key": "SET" if settings.TIKTOK_CLIENT_KEY else "NOT SET",
+            "client_secret": "SET" if settings.TIKTOK_CLIENT_SECRET else "NOT SET",
+        },
         "note": "This is a debug endpoint. Secrets are masked for security. Add the redirect_uris to your OAuth provider's allowed redirect URIs."
     }
 

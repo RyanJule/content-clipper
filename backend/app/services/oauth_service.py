@@ -444,7 +444,12 @@ class TikTokOAuth(OAuthProvider):
         return f"{self.authorization_url}?{urlencode(params)}"
 
     async def exchange_code_for_token(self, code: str) -> Dict:
-        """TikTok token exchange"""
+        """TikTok token exchange.
+
+        TikTok API v2 wraps token data inside a ``{"data": {...}}`` envelope.
+        This method unwraps it so callers receive a flat dict with
+        ``access_token``, ``refresh_token``, ``expires_in``, etc.
+        """
         data = {
             "client_key": self.client_id,
             "client_secret": self.client_secret,
@@ -460,11 +465,49 @@ class TikTokOAuth(OAuthProvider):
                 headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+
+            # TikTok nests token data under a "data" key
+            token_data = result.get("data", result)
+
+            if not token_data.get("access_token"):
+                error_msg = result.get("error", {}).get("message", "Unknown error")
+                raise ValueError(f"TikTok token exchange failed: {error_msg}")
+
+            return token_data
+
+    async def refresh_access_token(self, refresh_token: str) -> Dict:
+        """Refresh a TikTok access token.
+
+        TikTok uses ``client_key`` instead of ``client_id`` and requires a
+        JSON request body, so the base-class implementation does not work.
+        """
+        data = {
+            "client_key": self.client_id,
+            "client_secret": self.client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.token_url,
+                json=data,
+                headers={"Content-Type": "application/json"},
+            )
+            response.raise_for_status()
+            result = response.json()
+            token_data = result.get("data", result)
+
+            if not token_data.get("access_token"):
+                error_msg = result.get("error", {}).get("message", "Unknown error")
+                raise ValueError(f"TikTok token refresh failed: {error_msg}")
+
+            return token_data
 
     async def get_user_info(self, access_token: str) -> Dict:
-        """Get TikTok user info"""
-        url = "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name"
+        """Get TikTok user info via the v2 user info endpoint."""
+        url = "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url"
         headers = {"Authorization": f"Bearer {access_token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers)
@@ -474,6 +517,7 @@ class TikTokOAuth(OAuthProvider):
             return {
                 "id": user_data.get("open_id"),
                 "username": user_data.get("display_name"),
+                "avatar_url": user_data.get("avatar_url", ""),
             }
 
 
