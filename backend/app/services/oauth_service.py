@@ -430,7 +430,7 @@ class TikTokOAuth(OAuthProvider):
         self.redirect_uri = f"{settings.BACKEND_URL}/api/v1/oauth/tiktok/callback"
         self.authorization_url = "https://www.tiktok.com/v2/auth/authorize"
         self.token_url = "https://open.tiktokapis.com/v2/oauth/token/"
-        self.scope = ["user.info.basic", "user.info.stats", "video.upload", "video.publish", "video.list"]
+        self.scope = [s.strip() for s in settings.TIKTOK_SCOPES.split(",") if s.strip()]
 
     def get_authorization_url(self, state: str) -> str:
         """TikTok uses different parameter names"""

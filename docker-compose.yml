@@ -103,6 +103,7 @@ services:
       LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
       TIKTOK_CLIENT_KEY: ${TIKTOK_CLIENT_KEY:-}
       TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}
+      TIKTOK_SCOPES: ${TIKTOK_SCOPES:-user.info.basic,user.info.profile}
       BACKEND_URL: ${BACKEND_URL:-https://machine-systems.org}
       FRONTEND_URL: ${FRONTEND_URL:-https://machine-systems.org}
     depends_on:

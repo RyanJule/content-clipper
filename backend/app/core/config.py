@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     # TikTok OAuth
     TIKTOK_CLIENT_KEY: str = ""
     TIKTOK_CLIENT_SECRET: str = ""
+    # Comma-separated list of TikTok OAuth scopes.
+    # Default: Login Kit scopes only. To enable content posting, add the
+    # Content Posting API scopes after approving them in the TikTok Developer Console:
+    # user.info.basic,user.info.profile,video.publish,video.upload,video.list,user.info.stats
+    TIKTOK_SCOPES: str = "user.info.basic,user.info.profile"
 
     # Twitter/X OAuth
     TWITTER_API_KEY: str = ""
