@@ -1,5 +1,5 @@
 // frontend/src/components/Accounts/OAuthConnectModal.jsx
-import { Instagram, Linkedin, X, Youtube } from 'lucide-react'
+import { Instagram, Linkedin, Music2, X, Youtube } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { oauthService } from '../../services/oauthService'
@@ -25,6 +25,13 @@ const platforms = [
     icon: Linkedin,
     color: 'bg-blue-700',
     description: 'Connect your LinkedIn profile for professional content'
+  },
+  {
+    id: 'tiktok',
+    name: 'TikTok',
+    icon: Music2,
+    color: 'bg-black',
+    description: 'Connect your TikTok account to publish videos'
   },
 ]
 

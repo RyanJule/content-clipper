@@ -1,10 +1,11 @@
-import { Instagram, Linkedin, TrendingUp, Twitter, Youtube } from 'lucide-react'
+import { Instagram, Linkedin, Music2, TrendingUp, Twitter, Youtube } from 'lucide-react'
 
 const platformIcons = {
   instagram: Instagram,
   twitter: Twitter,
   linkedin: Linkedin,
   youtube: Youtube,
+  tiktok: Music2,
 }
 
 const platformColors = {
@@ -12,6 +13,7 @@ const platformColors = {
   twitter: 'bg-blue-400',
   linkedin: 'bg-blue-700',
   youtube: 'bg-red-600',
+  tiktok: 'bg-black',
 }
 
 export default function AccountCard({ account, compact = false }) {
