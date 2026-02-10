@@ -139,10 +139,10 @@ async def publish_video_by_url(
     db: Session = Depends(get_db),
 ):
     """
-    Publish a video from a publicly accessible URL.
+    Upload a video from a publicly accessible URL to the user's TikTok inbox.
 
-    TikTok will pull the video from the provided URL.
-    Use /publish/status to track the publishing progress.
+    TikTok will pull the video from the provided URL and place it in the
+    user's TikTok inbox. The user must open TikTok to finalize and publish.
     """
     tt = await _get_tiktok_service(current_user, db)
     try:
@@ -158,7 +158,7 @@ async def publish_video_by_url(
         return {
             "success": True,
             "publish_id": result["publish_id"],
-            "message": "Video publish initiated. Use /publish/status to check progress.",
+            "message": "Video sent to your TikTok inbox. Open TikTok to finalize and publish.",
         }
     except TikTokAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
@@ -179,10 +179,11 @@ async def upload_video(
     db: Session = Depends(get_db),
 ):
     """
-    Upload and publish a video file to TikTok.
+    Upload a video file to the user's TikTok inbox.
 
-    Accepts multipart form data with the video file and metadata.
-    Supports both small and large files with chunked upload.
+    Accepts multipart form data with the video file. The video is uploaded
+    to TikTok and placed in the user's inbox. The user must open TikTok
+    to finalize and publish the video.
     """
     tt = await _get_tiktok_service(current_user, db)
     try:
@@ -201,7 +202,7 @@ async def upload_video(
         return {
             "success": True,
             "publish_id": result["publish_id"],
-            "message": "Video uploaded successfully. Use /publish/status to check publishing progress.",
+            "message": "Video uploaded to your TikTok inbox. Open TikTok to finalize and publish.",
         }
 
     except TikTokAPIError as e:
@@ -273,7 +274,7 @@ async def publish_story_by_url(
         return {
             "success": True,
             "publish_id": result["publish_id"],
-            "message": "Story publish initiated. Use /publish/status to check progress.",
+            "message": "Story sent to your TikTok inbox. Open TikTok to finalize and publish.",
         }
     except TikTokAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
@@ -288,10 +289,10 @@ async def upload_story_video(
     db: Session = Depends(get_db),
 ):
     """
-    Upload and publish a video story to TikTok.
+    Upload a video story to the user's TikTok inbox.
 
-    Accepts multipart form data with the video file.
-    Stories are visible for 24 hours.
+    Accepts multipart form data with the video file. The video is uploaded
+    to TikTok and placed in the user's inbox for finalization.
     """
     tt = await _get_tiktok_service(current_user, db)
     try:
@@ -304,7 +305,7 @@ async def upload_story_video(
         return {
             "success": True,
             "publish_id": result["publish_id"],
-            "message": "Story video uploaded. Use /publish/status to check progress.",
+            "message": "Story video uploaded to your TikTok inbox. Open TikTok to finalize and publish.",
         }
 
     except TikTokAPIError as e:

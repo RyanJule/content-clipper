@@ -173,7 +173,7 @@ class TikTokService:
         )
         return result.get("data", {})
 
-    # ==================== VIDEO PUBLISHING (Direct Post) ====================
+    # ==================== VIDEO PUBLISHING (Inbox Upload) ====================
 
     async def publish_video_by_url(
         self,
@@ -188,37 +188,31 @@ class TikTokService:
         brand_organic_toggle: bool = False,
     ) -> Dict[str, Any]:
         """
-        Publish a video using a publicly accessible URL (Direct Post).
+        Upload a video to the user's TikTok inbox using a publicly accessible URL.
 
-        The video will be pulled from the URL by TikTok's servers.
+        The video will be pulled from the URL by TikTok's servers and placed
+        in the user's TikTok inbox. The user must open TikTok to finalize
+        and publish the video (set caption, privacy, etc.).
+
+        Uses the inbox endpoint (/post/publish/inbox/video/init/) which only
+        accepts source_info. Post metadata (title, privacy, etc.) is set by
+        the user in the TikTok app.
 
         Args:
             video_url: Publicly accessible URL of the video
-            title: Video description/caption (max 2200 chars)
-            privacy_level: SELF_ONLY, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, or PUBLIC_TO_EVERYONE
-            disable_duet: Disable duet for this video
-            disable_comment: Disable comments
-            disable_stitch: Disable stitch
-            video_cover_timestamp_ms: Cover image timestamp in ms
-            brand_content_toggle: Is branded content
-            brand_organic_toggle: Is organic branded content
+            title: Unused (kept for backward compatibility)
+            privacy_level: Unused (kept for backward compatibility)
+            disable_duet: Unused (kept for backward compatibility)
+            disable_comment: Unused (kept for backward compatibility)
+            disable_stitch: Unused (kept for backward compatibility)
+            video_cover_timestamp_ms: Unused (kept for backward compatibility)
+            brand_content_toggle: Unused (kept for backward compatibility)
+            brand_organic_toggle: Unused (kept for backward compatibility)
 
         Returns:
             Publish ID for status tracking
         """
-        post_info = {
-            "title": title[:2200],
-            "privacy_level": privacy_level,
-            "disable_duet": disable_duet,
-            "disable_comment": disable_comment,
-            "disable_stitch": disable_stitch,
-            "video_cover_timestamp_ms": video_cover_timestamp_ms,
-            "brand_content_toggle": brand_content_toggle,
-            "brand_organic_toggle": brand_organic_toggle,
-        }
-
         body = {
-            "post_info": post_info,
             "source_info": {
                 "source": "PULL_FROM_URL",
                 "video_url": video_url,
@@ -227,7 +221,7 @@ class TikTokService:
 
         result = await self._make_request(
             "POST",
-            "post/publish/video/init/",
+            "post/publish/inbox/video/init/",
             json_data=body,
         )
 
@@ -235,7 +229,7 @@ class TikTokService:
         if not publish_id:
             raise TikTokAPIError("No publish_id returned from video init")
 
-        logger.info(f"Initiated TikTok video publish (URL): {publish_id}")
+        logger.info(f"Initiated TikTok video inbox upload (URL): {publish_id}")
         return {"publish_id": publish_id}
 
     # ==================== VIDEO PUBLISHING (File Upload) ====================
@@ -254,36 +248,28 @@ class TikTokService:
         brand_organic_toggle: bool = False,
     ) -> Dict[str, Any]:
         """
-        Initialize a file-based video upload.
+        Initialize a file-based video upload to the user's TikTok inbox.
+
+        Uses the inbox endpoint which only accepts source_info.
+        The user finalizes post details in the TikTok app.
 
         For videos > 64MB, uses chunked upload. For smaller videos, uses single upload.
 
         Args:
             video_size: Total video file size in bytes
             chunk_size: Size of each chunk (for chunked uploads)
-            title: Video description/caption
-            privacy_level: Privacy level
-            disable_duet: Disable duet
-            disable_comment: Disable comments
-            disable_stitch: Disable stitch
-            video_cover_timestamp_ms: Cover timestamp
-            brand_content_toggle: Branded content flag
-            brand_organic_toggle: Organic branded content flag
+            title: Unused (kept for backward compatibility)
+            privacy_level: Unused (kept for backward compatibility)
+            disable_duet: Unused (kept for backward compatibility)
+            disable_comment: Unused (kept for backward compatibility)
+            disable_stitch: Unused (kept for backward compatibility)
+            video_cover_timestamp_ms: Unused (kept for backward compatibility)
+            brand_content_toggle: Unused (kept for backward compatibility)
+            brand_organic_toggle: Unused (kept for backward compatibility)
 
         Returns:
             Upload URL and publish_id
         """
-        post_info = {
-            "title": title[:2200],
-            "privacy_level": privacy_level,
-            "disable_duet": disable_duet,
-            "disable_comment": disable_comment,
-            "disable_stitch": disable_stitch,
-            "video_cover_timestamp_ms": video_cover_timestamp_ms,
-            "brand_content_toggle": brand_content_toggle,
-            "brand_organic_toggle": brand_organic_toggle,
-        }
-
         # Use chunked upload for large files (> 64MB), single chunk for small files
         if video_size > 64 * 1024 * 1024:
             actual_chunk_size = chunk_size or self.CHUNK_SIZE
@@ -300,13 +286,12 @@ class TikTokService:
         }
 
         body = {
-            "post_info": post_info,
             "source_info": source_info,
         }
 
         result = await self._make_request(
             "POST",
-            "post/publish/video/init/",
+            "post/publish/inbox/video/init/",
             json_data=body,
         )
 
@@ -317,7 +302,7 @@ class TikTokService:
         if not publish_id or not upload_url:
             raise TikTokAPIError("Failed to initialize video upload: missing publish_id or upload_url")
 
-        logger.info(f"Initialized TikTok video upload: {publish_id}")
+        logger.info(f"Initialized TikTok inbox video upload: {publish_id}")
         return {
             "publish_id": publish_id,
             "upload_url": upload_url,
@@ -617,10 +602,9 @@ class TikTokService:
             endpoint = "post/publish/content/init/"
         else:
             body = {
-                "post_info": post_info,
                 "source_info": source_info,
             }
-            endpoint = "post/publish/video/init/"
+            endpoint = "post/publish/inbox/video/init/"
 
         result = await self._make_request(
             "POST",
@@ -640,7 +624,9 @@ class TikTokService:
         video_size: int,
     ) -> Dict[str, Any]:
         """
-        Initialize a file-based story video upload.
+        Initialize a file-based story video upload to the user's TikTok inbox.
+
+        Uses the inbox endpoint. The user finalizes the story in the TikTok app.
 
         Args:
             video_size: Total video file size in bytes
@@ -648,10 +634,6 @@ class TikTokService:
         Returns:
             Upload URL and publish_id
         """
-        post_info = {
-            "privacy_level": "STORY_PRIVACY",
-        }
-
         source_info = {
             "source": "FILE_UPLOAD",
             "video_size": video_size,
@@ -664,13 +646,12 @@ class TikTokService:
             source_info["total_chunk_count"] = total_chunk_count
 
         body = {
-            "post_info": post_info,
             "source_info": source_info,
         }
 
         result = await self._make_request(
             "POST",
-            "post/publish/video/init/",
+            "post/publish/inbox/video/init/",
             json_data=body,
         )
 
@@ -783,6 +764,10 @@ class TikTokService:
 
             if status == "PUBLISH_COMPLETE":
                 logger.info(f"TikTok publish complete: {publish_id}")
+                return status_data
+
+            if status == "SEND_TO_USER_INBOX":
+                logger.info(f"TikTok video sent to user inbox: {publish_id}")
                 return status_data
 
             if status == "FAILED":

@@ -5,11 +5,6 @@ import { tiktokService } from '../../services/tiktokService'
 
 export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
   const [file, setFile] = useState(null)
-  const [title, setTitle] = useState('')
-  const [privacyLevel, setPrivacyLevel] = useState('SELF_ONLY')
-  const [disableDuet, setDisableDuet] = useState(false)
-  const [disableComment, setDisableComment] = useState(false)
-  const [disableStitch, setDisableStitch] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const fileInputRef = useRef(null)
@@ -43,19 +38,14 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
     setUploadProgress(0)
 
     try {
-      const metadata = {
-        title: title.trim(),
-        privacy_level: privacyLevel,
-        disable_duet: disableDuet,
-        disable_comment: disableComment,
-        disable_stitch: disableStitch,
-      }
+      const metadata = {}
 
       const onProgress = percent => {
         setUploadProgress(percent)
       }
 
       await tiktokService.uploadVideo(file, metadata, onProgress)
+      toast.success('Video uploaded! Open TikTok to finalize and publish.')
       onSuccess()
     } catch (error) {
       console.error('Upload failed:', error)
@@ -85,6 +75,11 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
         </div>
 
         <form onSubmit={handleUpload} className="p-6 space-y-4">
+          {/* Inbox Flow Info */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+            Your video will be uploaded to your TikTok inbox. Open TikTok to add a caption, set privacy, and publish.
+          </div>
+
           {/* File Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -126,81 +121,6 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
                 <p className="text-xs text-gray-400 mt-1">MP4, MOV, WebM supported</p>
               </button>
             )}
-          </div>
-
-          {/* Caption */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Caption</label>
-            <textarea
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              maxLength={2200}
-              rows={4}
-              placeholder="Write a caption for your TikTok..."
-              className="input"
-              disabled={uploading}
-            />
-            <p className="text-xs text-gray-400 mt-1">{title.length}/2200 characters</p>
-          </div>
-
-          {/* Privacy */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Privacy</label>
-            <select
-              value={privacyLevel}
-              onChange={e => setPrivacyLevel(e.target.value)}
-              className="input"
-              disabled={uploading}
-            >
-              <option value="PUBLIC_TO_EVERYONE">Public</option>
-              <option value="MUTUAL_FOLLOW_FRIENDS">Friends</option>
-              <option value="FOLLOWER_OF_CREATOR">Followers</option>
-              <option value="SELF_ONLY">Only Me</option>
-            </select>
-          </div>
-
-          {/* Interaction Settings */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Interactions</label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="allowComment"
-                checked={!disableComment}
-                onChange={e => setDisableComment(!e.target.checked)}
-                className="rounded border-gray-300 text-gray-900 focus:ring-gray-500"
-                disabled={uploading}
-              />
-              <label htmlFor="allowComment" className="text-sm text-gray-700">
-                Allow comments
-              </label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="allowDuet"
-                checked={!disableDuet}
-                onChange={e => setDisableDuet(!e.target.checked)}
-                className="rounded border-gray-300 text-gray-900 focus:ring-gray-500"
-                disabled={uploading}
-              />
-              <label htmlFor="allowDuet" className="text-sm text-gray-700">
-                Allow Duet
-              </label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="allowStitch"
-                checked={!disableStitch}
-                onChange={e => setDisableStitch(!e.target.checked)}
-                className="rounded border-gray-300 text-gray-900 focus:ring-gray-500"
-                disabled={uploading}
-              />
-              <label htmlFor="allowStitch" className="text-sm text-gray-700">
-                Allow Stitch
-              </label>
-            </div>
           </div>
 
           {/* Upload Progress */}

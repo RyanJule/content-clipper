@@ -539,8 +539,9 @@ async def _publish_to_tiktok(
 
             publish_id = result["publish_id"]
 
-            # Wait for publishing to complete
+            # Wait for upload to complete (inbox flow: ends at SEND_TO_USER_INBOX)
             status_data = await tt_api.wait_for_publish(publish_id)
+            status = status_data.get("status")
             created_items = status_data.get("created_items", [])
 
             platform_post_id = publish_id
@@ -550,6 +551,9 @@ async def _publish_to_tiktok(
                 item_id = created_items[0].get("id", publish_id)
                 platform_post_id = item_id
                 platform_url = f"https://www.tiktok.com/@user/video/{item_id}"
+
+            if status == "SEND_TO_USER_INBOX":
+                logger.info(f"TikTok video sent to user inbox: {publish_id}. User must finalize in TikTok app.")
 
         elif media_type in ('image', 'photo'):
             # Photo post
