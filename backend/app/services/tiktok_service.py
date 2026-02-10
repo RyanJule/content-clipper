@@ -223,11 +223,13 @@ class TikTokService:
                 "source": "PULL_FROM_URL",
                 "video_url": video_url,
             },
+            "post_mode": "DIRECT_POST",
+            "media_type": "VIDEO",
         }
 
         result = await self._make_request(
             "POST",
-            "post/publish/video/init/",
+            "post/publish/content/init/",
             json_data=body,
         )
 
@@ -302,11 +304,13 @@ class TikTokService:
         body = {
             "post_info": post_info,
             "source_info": source_info,
+            "post_mode": "DIRECT_POST",
+            "media_type": "VIDEO",
         }
 
         result = await self._make_request(
             "POST",
-            "post/publish/video/init/",
+            "post/publish/content/init/",
             json_data=body,
         )
 
