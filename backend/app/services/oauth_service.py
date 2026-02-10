@@ -471,7 +471,14 @@ class TikTokOAuth(OAuthProvider):
             token_data = result.get("data", result)
 
             if not token_data.get("access_token"):
-                error_msg = result.get("error", {}).get("message", "Unknown error")
+                error = result.get("error", "Unknown error")
+                if isinstance(error, dict):
+                    error_msg = error.get("message", "Unknown error")
+                else:
+                    error_msg = str(error)
+                description = result.get("error_description", "")
+                if description:
+                    error_msg = f"{error_msg}: {description}"
                 raise ValueError(f"TikTok token exchange failed: {error_msg}")
 
             return token_data
