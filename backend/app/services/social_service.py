@@ -14,6 +14,11 @@ from app.services.instagram_graph_service import (
     InstagramGraphAPI,
     InstagramGraphAPIError
 )
+from app.services.youtube_service import (
+    YouTubeService,
+    YouTubeAPIError,
+    create_youtube_service,
+)
 from app.core.crypto import decrypt_token
 
 logger = logging.getLogger(__name__)
@@ -133,6 +138,8 @@ async def publish_post(db: Session, post_id: int) -> dict:
         # Publish based on platform
         if db_post.platform == SocialPlatform.INSTAGRAM:
             result = await _publish_to_instagram(db_post, clip, account)
+        elif db_post.platform == SocialPlatform.YOUTUBE:
+            result = await _publish_to_youtube(db_post, clip, account)
         else:
             # For other platforms, use mock implementation for now
             result = {
@@ -359,3 +366,110 @@ async def _publish_to_instagram(
         raise
     finally:
         await ig_api.close()
+
+
+async def _publish_to_youtube(
+    post: SocialPost,
+    clip,
+    account: Account,
+) -> dict:
+    """
+    Publish a post to YouTube using Data API v3 with resumable uploads.
+
+    Supports:
+    - Standard video uploads
+    - Shorts (vertical, < 60s — detected from clip metadata or title)
+
+    Args:
+        post: Social post object
+        clip: Clip object containing media
+        account: Connected YouTube account
+
+    Returns:
+        Dictionary with platform_post_id and platform_url
+    """
+    access_token = decrypt_token(account.access_token_enc)
+    if not access_token:
+        raise ValueError("Invalid YouTube access token")
+
+    yt_api = create_youtube_service(access_token)
+
+    try:
+        # Prepare title and description
+        title = post.title or "Untitled Video"
+        description = post.caption or ""
+        if post.hashtags:
+            hashtags_list = json.loads(post.hashtags) if isinstance(post.hashtags, str) else post.hashtags
+            description = f"{description}\n\n{' '.join(hashtags_list)}"
+
+        tags = []
+        if post.hashtags:
+            hashtags_list = json.loads(post.hashtags) if isinstance(post.hashtags, str) else post.hashtags
+            tags = [tag.lstrip("#") for tag in hashtags_list]
+
+        # Determine if this is a Short based on clip properties
+        is_short = False
+        duration = getattr(clip, "duration", None)
+        width = getattr(clip, "width", None)
+        height = getattr(clip, "height", None)
+
+        # Auto-detect Shorts: vertical video under 60 seconds
+        if duration and duration <= 60:
+            if height and width and height > width:
+                is_short = True
+        # Also check if user explicitly flagged it
+        if "#Shorts" in title or "#Shorts" in description:
+            is_short = True
+
+        # Get the file path for the clip
+        file_path = getattr(clip, "file_path", None)
+        if not file_path:
+            raise ValueError("Clip does not have a file path for upload")
+
+        # Determine privacy status
+        privacy_status = "public"
+        if post.scheduled_for and post.scheduled_for > datetime.utcnow():
+            privacy_status = "private"
+
+        # Upload using the appropriate method
+        if is_short:
+            video_resource = await yt_api.upload_short(
+                file_path=file_path,
+                title=title,
+                description=description,
+                tags=tags,
+                privacy_status=privacy_status,
+            )
+        else:
+            video_resource = await yt_api.upload_video_file(
+                file_path=file_path,
+                title=title,
+                description=description,
+                tags=tags,
+                privacy_status=privacy_status,
+                is_short=False,
+            )
+
+        video_id = video_resource.get("id")
+        if not video_id:
+            raise ValueError("Upload succeeded but no video ID returned")
+
+        platform_url = f"https://www.youtube.com/watch?v={video_id}"
+        if is_short:
+            platform_url = f"https://www.youtube.com/shorts/{video_id}"
+
+        logger.info(f"Published YouTube {'Short' if is_short else 'video'}: {video_id}")
+
+        return {
+            "platform_post_id": video_id,
+            "platform_url": platform_url,
+        }
+
+    except YouTubeAPIError as e:
+        logger.error(f"YouTube API error: {str(e)}")
+        raise ValueError(f"YouTube API error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to publish to YouTube: {str(e)}")
+        raise
+    finally:
+        await yt_api.close()

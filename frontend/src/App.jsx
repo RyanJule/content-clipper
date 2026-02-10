@@ -6,6 +6,7 @@ import Accounts from './pages/Accounts'
 import CalendarPage from './pages/CalendarPage'
 import ClipsManager from './pages/ClipsManager'
 import Dashboard from './pages/Dashboard'
+import InstagramDashboard from './pages/InstagramDashboard'
 import Login from './pages/Login'
 import MediaLibrary from './pages/MediaLibrary'
 import OAuthSuccess from './pages/OAuthSuccess'
@@ -14,6 +15,7 @@ import Register from './pages/Register'
 import Schedules from './pages/Schedules'
 import SocialScheduler from './pages/SocialScheduler'
 import TermsOfService from './pages/TermsOfService'
+import YouTubeStudio from './pages/YouTubeStudio'
 import { useStore } from './store'
 
 function App() {
@@ -53,6 +55,8 @@ function App() {
           <Route path="media" element={<MediaLibrary />} />
           <Route path="clips" element={<ClipsManager />} />
           <Route path="social" element={<SocialScheduler />} />
+          <Route path="youtube" element={<YouTubeStudio />} />
+          <Route path="instagram" element={<InstagramDashboard />} />
         </Route>
 
         {/* Catch all */}

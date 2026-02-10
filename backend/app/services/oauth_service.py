@@ -310,49 +310,86 @@ class InstagramOAuth(OAuthProvider):
 
 
 class YouTubeOAuth(OAuthProvider):
-    """YouTube OAuth (via Google)"""
+    """
+    YouTube OAuth (via Google OAuth 2.0)
+
+    Provides access to YouTube Data API v3 for:
+    - Video uploads (standard and resumable)
+    - Shorts publishing
+    - Community posts
+    - Thumbnail management
+    - Channel management
+    """
 
     def __init__(self):
         super().__init__()
         self.platform_name = "youtube"
         self.client_id = settings.YOUTUBE_CLIENT_ID
         self.client_secret = settings.YOUTUBE_CLIENT_SECRET
+
+        if not self.client_id or not self.client_secret:
+            raise ValueError(
+                "YouTube/Google OAuth credentials not configured. "
+                "Please set YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET in your .env file. "
+                "Get these from https://console.cloud.google.com/apis/credentials"
+            )
+
         self.redirect_uri = f"{settings.BACKEND_URL}/api/v1/oauth/youtube/callback"
         self.authorization_url = "https://accounts.google.com/o/oauth2/v2/auth"
         self.token_url = "https://oauth2.googleapis.com/token"
         self.scope = [
             "https://www.googleapis.com/auth/youtube.upload",
+            "https://www.googleapis.com/auth/youtube",
             "https://www.googleapis.com/auth/youtube.readonly",
+            "https://www.googleapis.com/auth/youtube.force-ssl",
         ]
 
     def get_authorization_url(self, state: str) -> str:
-        """Override to add access_type and prompt"""
+        """Override to add access_type and prompt for offline refresh tokens"""
         params = {
             "client_id": self.client_id,
             "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "scope": " ".join(self.scope),
             "state": state,
-            "access_type": "offline",  # Request refresh token
-            "prompt": "consent",  # Force consent screen
+            "access_type": "offline",
+            "prompt": "consent",
+            "include_granted_scopes": "true",
         }
         return f"{self.authorization_url}?{urlencode(params)}"
 
     async def get_user_info(self, access_token: str) -> Dict:
-        """Get YouTube channel info"""
-        url = "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true"
+        """Get YouTube channel info including snippet and statistics"""
+        url = "https://www.googleapis.com/youtube/v3/channels"
+        params = {
+            "part": "snippet,statistics,contentDetails",
+            "mine": "true",
+        }
         headers = {"Authorization": f"Bearer {access_token}"}
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers)
+            response = await client.get(url, params=params, headers=headers)
             response.raise_for_status()
             data = response.json()
             if data.get("items"):
                 channel = data["items"][0]
+                snippet = channel.get("snippet", {})
+                statistics = channel.get("statistics", {})
                 return {
                     "id": channel["id"],
-                    "username": channel["snippet"]["title"],
+                    "username": snippet.get("title", ""),
+                    "channel_id": channel["id"],
+                    "channel_title": snippet.get("title", ""),
+                    "channel_description": snippet.get("description", ""),
+                    "channel_thumbnail": snippet.get("thumbnails", {}).get("default", {}).get("url", ""),
+                    "subscriber_count": statistics.get("subscriberCount", "0"),
+                    "video_count": statistics.get("videoCount", "0"),
+                    "view_count": statistics.get("viewCount", "0"),
+                    "uploads_playlist_id": channel.get("contentDetails", {}).get("relatedPlaylists", {}).get("uploads", ""),
                 }
-            return {}
+            raise ValueError(
+                "No YouTube channel found for this Google account. "
+                "Please create a YouTube channel first."
+            )
 
 
 class LinkedInOAuth(OAuthProvider):

@@ -8,11 +8,13 @@ from app.api.v1.endpoints import (
     clips,
     data_deletion,
     health,
+    instagram,
     media,
     oauth,
     schedules,
     social,
     users,
+    youtube,
 )
 
 api_router = APIRouter()
@@ -26,4 +28,6 @@ api_router.include_router(media.router, prefix="/media", tags=["media"])
 api_router.include_router(clips.router, prefix="/clips", tags=["clips"])
 api_router.include_router(schedules.router, prefix="/schedules", tags=["schedules"])
 api_router.include_router(social.router, prefix="/social", tags=["social"])
+api_router.include_router(instagram.router, prefix="/instagram", tags=["instagram"])
+api_router.include_router(youtube.router, prefix="/youtube", tags=["youtube"])
 api_router.include_router(data_deletion.router, prefix="/oauth", tags=["data-deletion"])
