@@ -32,9 +32,10 @@ class TikTokService:
     TikTok Content Posting API client.
 
     Scopes used:
+    - user.info.basic: Get basic user info
+    - user.info.stats: Get user stats (follower_count, following_count, etc.)
     - video.upload: Upload video content
     - video.publish: Publish video content
-    - user.info.basic: Get basic user info
     """
 
     BASE_URL = "https://open.tiktokapis.com/v2"
