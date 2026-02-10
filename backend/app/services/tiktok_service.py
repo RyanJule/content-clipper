@@ -141,15 +141,34 @@ class TikTokService:
         """
         Get the authenticated user's TikTok profile information.
 
+        Requests basic fields first (user.info.basic scope), then
+        attempts to fetch stats fields (user.info.stats scope) if available.
+
         Returns:
-            User info with open_id, display_name, avatar_url
+            User info with open_id, display_name, avatar_url, and optionally stats
         """
+        # Basic fields - only requires user.info.basic scope
         result = await self._make_request(
             "GET",
             "user/info/",
-            params={"fields": "open_id,display_name,avatar_url,follower_count,following_count,likes_count,video_count"},
+            params={"fields": "open_id,display_name,avatar_url"},
         )
-        return result.get("data", {}).get("user", {})
+        user_data = result.get("data", {}).get("user", {})
+
+        # Try to fetch stats fields (requires user.info.stats scope)
+        try:
+            stats_result = await self._make_request(
+                "GET",
+                "user/info/",
+                params={"fields": "follower_count,following_count,likes_count,video_count"},
+            )
+            stats_data = stats_result.get("data", {}).get("user", {})
+            user_data.update(stats_data)
+        except TikTokAPIError:
+            # Stats scope not authorized - return basic info only
+            logger.debug("user.info.stats scope not available, skipping stats fields")
+
+        return user_data
 
     # ==================== CREATOR INFO ====================
 
