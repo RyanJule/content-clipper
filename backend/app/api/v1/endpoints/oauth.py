@@ -6,7 +6,7 @@ from typing import Optional
 from urllib.parse import quote
 
 import redis
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -123,23 +123,35 @@ async def oauth_authorize(
     return {"authorization_url": auth_url, "platform": platform}
 
 
-@router.get("/{platform}/callback")
+@router.api_route("/{platform}/callback", methods=["GET", "POST"])
 async def oauth_callback(
+    request: Request,
     platform: str,
-    code: Optional[str] = Query(None),
-    state: Optional[str] = Query(None),
-    error: Optional[str] = Query(None),
-    error_description: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     """
     OAuth callback endpoint - receives authorization code from provider.
+    Accepts both GET (query params) and POST (form data) to support
+    all OAuth providers including TikTok which sends POST callbacks.
     After processing, redirects the popup to the frontend OAuthSuccess page
     which relays the result to the parent window via postMessage.
     """
     import logging
 
     logger = logging.getLogger(__name__)
+
+    # Extract parameters from query params (GET) or form data (POST)
+    if request.method == "POST":
+        form_data = await request.form()
+        code = form_data.get("code")
+        state = form_data.get("state")
+        error = form_data.get("error")
+        error_description = form_data.get("error_description")
+    else:
+        code = request.query_params.get("code")
+        state = request.query_params.get("state")
+        error = request.query_params.get("error")
+        error_description = request.query_params.get("error_description")
 
     frontend_url = settings.FRONTEND_URL
 
