@@ -284,17 +284,20 @@ class TikTokService:
             "brand_organic_toggle": brand_organic_toggle,
         }
 
-        source_info = {
-            "source": "FILE_UPLOAD",
-            "video_size": video_size,
-        }
-
-        # Use chunked upload for large files (> 64MB)
+        # Use chunked upload for large files (> 64MB), single chunk for small files
         if video_size > 64 * 1024 * 1024:
             actual_chunk_size = chunk_size or self.CHUNK_SIZE
             total_chunk_count = -(-video_size // actual_chunk_size)  # ceiling division
-            source_info["chunk_size"] = actual_chunk_size
-            source_info["total_chunk_count"] = total_chunk_count
+        else:
+            actual_chunk_size = video_size
+            total_chunk_count = 1
+
+        source_info = {
+            "source": "FILE_UPLOAD",
+            "video_size": video_size,
+            "chunk_size": actual_chunk_size,
+            "total_chunk_count": total_chunk_count,
+        }
 
         body = {
             "post_info": post_info,
