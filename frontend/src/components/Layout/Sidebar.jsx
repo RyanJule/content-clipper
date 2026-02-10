@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Calendar, ChevronLeft, ChevronRight, Clock, Home, Scissors, Share2, Users, Video } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Clock, Home, Instagram, Scissors, Share2, Users, Video, Youtube } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useStore } from '../../store'
 
@@ -11,6 +11,8 @@ const navigation = [
   { name: 'Media Library', to: '/media', icon: Video },
   { name: 'Clips', to: '/clips', icon: Scissors },
   { name: 'Social Posts', to: '/social', icon: Share2 },
+  { name: 'YouTube Studio', to: '/youtube', icon: Youtube },
+  { name: 'Instagram', to: '/instagram', icon: Instagram },
 ]
 
 export default function Sidebar() {
