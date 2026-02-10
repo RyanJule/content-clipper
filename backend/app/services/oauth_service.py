@@ -461,8 +461,8 @@ class TikTokOAuth(OAuthProvider):
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 self.token_url,
-                json=data,
-                headers={"Content-Type": "application/json"},
+                data=data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
             response.raise_for_status()
             result = response.json()
@@ -487,7 +487,7 @@ class TikTokOAuth(OAuthProvider):
         """Refresh a TikTok access token.
 
         TikTok uses ``client_key`` instead of ``client_id`` and requires a
-        JSON request body, so the base-class implementation does not work.
+        form-encoded request body, so the base-class implementation does not work.
         """
         data = {
             "client_key": self.client_id,
@@ -499,8 +499,8 @@ class TikTokOAuth(OAuthProvider):
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 self.token_url,
-                json=data,
-                headers={"Content-Type": "application/json"},
+                data=data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
             response.raise_for_status()
             result = response.json()
