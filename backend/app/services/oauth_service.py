@@ -393,7 +393,12 @@ class YouTubeOAuth(OAuthProvider):
 
 
 class LinkedInOAuth(OAuthProvider):
-    """LinkedIn OAuth"""
+    """
+    LinkedIn OAuth (Community Management API)
+
+    Uses OpenID Connect for authentication and the versioned REST API
+    for content publishing. Supports personal profiles and company pages.
+    """
 
     def __init__(self):
         super().__init__()
@@ -403,19 +408,39 @@ class LinkedInOAuth(OAuthProvider):
         self.redirect_uri = f"{settings.BACKEND_URL}/api/v1/oauth/linkedin/callback"
         self.authorization_url = "https://www.linkedin.com/oauth/v2/authorization"
         self.token_url = "https://www.linkedin.com/oauth/v2/accessToken"
-        self.scope = ["r_liteprofile", "r_emailaddress", "w_member_social"]
+        self.scope = [
+            "openid",
+            "profile",
+            "email",
+            "w_member_social",
+            "r_organization_social",
+            "w_organization_social",
+        ]
 
     async def get_user_info(self, access_token: str) -> Dict:
-        """Get LinkedIn user profile"""
-        url = "https://api.linkedin.com/v2/me"
+        """Get LinkedIn user profile via OpenID Connect userinfo endpoint."""
         headers = {"Authorization": f"Bearer {access_token}"}
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers)
+            # Use the userinfo endpoint (OpenID Connect)
+            response = await client.get(
+                "https://api.linkedin.com/v2/userinfo",
+                headers=headers,
+            )
             response.raise_for_status()
             data = response.json()
+
+            person_id = data.get("sub", "")
+            name = data.get("name", "")
+            email = data.get("email", "")
+            picture = data.get("picture", "")
+
+            # Also fetch the person URN for posting
             return {
-                "id": data["id"],
-                "username": f"{data.get('localizedFirstName', '')} {data.get('localizedLastName', '')}".strip(),
+                "id": person_id,
+                "username": name,
+                "email": email,
+                "picture": picture,
+                "person_urn": f"urn:li:person:{person_id}",
             }
 
 

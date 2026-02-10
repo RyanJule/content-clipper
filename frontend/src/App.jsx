@@ -7,6 +7,7 @@ import CalendarPage from './pages/CalendarPage'
 import ClipsManager from './pages/ClipsManager'
 import Dashboard from './pages/Dashboard'
 import InstagramDashboard from './pages/InstagramDashboard'
+import LinkedInDashboard from './pages/LinkedInDashboard'
 import Login from './pages/Login'
 import MediaLibrary from './pages/MediaLibrary'
 import OAuthSuccess from './pages/OAuthSuccess'
@@ -57,6 +58,7 @@ function App() {
           <Route path="social" element={<SocialScheduler />} />
           <Route path="youtube" element={<YouTubeStudio />} />
           <Route path="instagram" element={<InstagramDashboard />} />
+          <Route path="linkedin" element={<LinkedInDashboard />} />
         </Route>
 
         {/* Catch all */}

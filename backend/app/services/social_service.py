@@ -19,6 +19,11 @@ from app.services.youtube_service import (
     YouTubeAPIError,
     create_youtube_service,
 )
+from app.services.linkedin_service import (
+    LinkedInService,
+    LinkedInAPIError,
+    create_linkedin_service,
+)
 from app.core.crypto import decrypt_token
 
 logger = logging.getLogger(__name__)
@@ -140,6 +145,8 @@ async def publish_post(db: Session, post_id: int) -> dict:
             result = await _publish_to_instagram(db_post, clip, account)
         elif db_post.platform == SocialPlatform.YOUTUBE:
             result = await _publish_to_youtube(db_post, clip, account)
+        elif db_post.platform == SocialPlatform.LINKEDIN:
+            result = await _publish_to_linkedin(db_post, clip, account)
         else:
             # For other platforms, use mock implementation for now
             result = {
@@ -473,3 +480,123 @@ async def _publish_to_youtube(
         raise
     finally:
         await yt_api.close()
+
+
+async def _publish_to_linkedin(
+    post: SocialPost,
+    clip,
+    account: Account,
+) -> dict:
+    """
+    Publish a post to LinkedIn using the Community Management API.
+
+    Supports:
+    - Text posts (caption only)
+    - Image posts (image media from clip)
+    - Video posts (video media from clip)
+
+    Args:
+        post: Social post object
+        clip: Clip object containing media
+        account: Connected LinkedIn account
+
+    Returns:
+        Dictionary with platform_post_id and platform_url
+    """
+    access_token = decrypt_token(account.access_token_enc)
+    if not access_token:
+        raise ValueError("Invalid LinkedIn access token")
+
+    # Get author URN from account metadata
+    meta_info = account.meta_info or {}
+    author_urn = meta_info.get("person_urn", "")
+    if not author_urn:
+        person_id = meta_info.get("id", "")
+        if person_id:
+            author_urn = f"urn:li:person:{person_id}"
+        else:
+            raise ValueError("LinkedIn person URN not found. Please reconnect your account.")
+
+    li_api = create_linkedin_service(access_token)
+
+    try:
+        # Prepare text with hashtags
+        text = post.caption or ""
+        if post.hashtags:
+            hashtags_list = json.loads(post.hashtags) if isinstance(post.hashtags, str) else post.hashtags
+            text = f"{text}\n\n{' '.join(hashtags_list)}"
+
+        # Determine media type from clip
+        media_type = getattr(clip, 'media_type', '').lower()
+        media_url = getattr(clip, 'media_url', None)
+        file_path = getattr(clip, 'file_path', None)
+
+        if media_type in ('video', 'reel') and file_path:
+            # Video post
+            import os
+            with open(file_path, "rb") as f:
+                video_data = f.read()
+
+            result = await li_api.create_video_post(
+                author_urn=author_urn,
+                text=text,
+                video_data=video_data,
+                title=post.title or "Video",
+                visibility="PUBLIC",
+            )
+
+            return {
+                "platform_post_id": result.get("post_urn", ""),
+                "platform_url": result.get("post_url", ""),
+            }
+
+        elif media_type in ('image', 'photo') and file_path:
+            # Image post
+            import os
+            ext = os.path.splitext(file_path)[1].lower()
+            content_types = {
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+            }
+            content_type = content_types.get(ext, "image/jpeg")
+
+            with open(file_path, "rb") as f:
+                image_data = f.read()
+
+            result = await li_api.create_image_post(
+                author_urn=author_urn,
+                text=text,
+                image_data=image_data,
+                content_type=content_type,
+                visibility="PUBLIC",
+            )
+
+            return {
+                "platform_post_id": result.get("post_urn", ""),
+                "platform_url": result.get("post_url", ""),
+            }
+
+        else:
+            # Text-only post
+            result = await li_api.create_text_post(
+                author_urn=author_urn,
+                text=text,
+                visibility="PUBLIC",
+            )
+
+            return {
+                "platform_post_id": result.get("post_urn", ""),
+                "platform_url": result.get("post_url", ""),
+            }
+
+    except LinkedInAPIError as e:
+        logger.error(f"LinkedIn API error: {str(e)}")
+        raise ValueError(f"LinkedIn API error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to publish to LinkedIn: {str(e)}")
+        raise
+    finally:
+        await li_api.close()
