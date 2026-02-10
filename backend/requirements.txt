@@ -15,9 +15,6 @@ flower==2.0.1
 
 # AI/ML
 openai==1.3.5
-openai-whisper==20231117
-torch==2.1.0
-torchaudio==2.1.0
 
 # Video Processing
 ffmpeg-python==0.2.0
