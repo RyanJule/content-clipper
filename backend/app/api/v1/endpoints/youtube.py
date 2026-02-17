@@ -13,6 +13,7 @@ Provides endpoints for:
 """
 
 import logging
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -24,6 +25,7 @@ from app.core.database import get_db
 from app.core.crypto import decrypt_token
 from app.models.account import Account
 from app.models.user import User
+from app.services.oauth_service import refresh_account_token
 from app.services.youtube_service import (
     YouTubeAPIError,
     YouTubeService,
@@ -84,6 +86,23 @@ async def _get_youtube_service(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No active YouTube account found. Please connect your YouTube account first.",
         )
+
+    # Refresh the token if it is expired or about to expire
+    if account.token_expires_at:
+        now = datetime.utcnow()
+        buffer = timedelta(minutes=5)
+        if now + buffer >= account.token_expires_at:
+            logger.info(
+                f"YouTube token expiring soon for account {account.id}, refreshing..."
+            )
+            try:
+                account = await refresh_account_token(db, account)
+            except Exception as e:
+                logger.error(f"Failed to refresh YouTube token: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="YouTube access token has expired and could not be refreshed. Please reconnect your account.",
+                )
 
     access_token = decrypt_token(account.access_token_enc)
     if not access_token:
