@@ -27,6 +27,23 @@ class TikTokAPIError(Exception):
     pass
 
 
+class TikTokAuthError(TikTokAPIError):
+    """Raised when TikTok returns an authentication/authorization error.
+
+    This typically means the access token is expired or invalid.
+    The caller should refresh the token or prompt the user to reconnect.
+    """
+    pass
+
+
+# TikTok error codes that indicate an invalid/expired access token
+_TIKTOK_AUTH_ERROR_CODES = frozenset({
+    "access_token_invalid",
+    "access_token_expired",
+    "token_not_authorized",
+})
+
+
 class TikTokService:
     """
     TikTok Content Posting API client.
@@ -112,9 +129,11 @@ class TikTokService:
             if error.get("code") and error["code"] != "ok":
                 error_msg = error.get("message", "Unknown TikTok API error")
                 log_id = error.get("log_id", "")
-                raise TikTokAPIError(
-                    f"TikTok API error: {error_msg} (code: {error['code']}, log_id: {log_id})"
-                )
+                error_code = error["code"]
+                full_msg = f"TikTok API error: {error_msg} (code: {error_code}, log_id: {log_id})"
+                if error_code in _TIKTOK_AUTH_ERROR_CODES:
+                    raise TikTokAuthError(full_msg)
+                raise TikTokAPIError(full_msg)
 
             return result
 
@@ -126,7 +145,10 @@ class TikTokService:
                 pass
             error_info = error_data.get("error", {})
             error_msg = error_info.get("message", str(e))
+            error_code = error_info.get("code", "")
             logger.error(f"TikTok API error ({e.response.status_code}): {error_msg}")
+            if e.response.status_code == 401 or error_code in _TIKTOK_AUTH_ERROR_CODES:
+                raise TikTokAuthError(f"TikTok API error: {error_msg}")
             raise TikTokAPIError(f"TikTok API error: {error_msg}")
         except httpx.TimeoutException:
             raise TikTokAPIError("TikTok API request timed out")

@@ -10,6 +10,7 @@ Provides endpoints for:
 """
 
 import logging
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -21,8 +22,10 @@ from app.core.database import get_db
 from app.core.crypto import decrypt_token
 from app.models.account import Account
 from app.models.user import User
+from app.services.oauth_service import refresh_account_token
 from app.services.tiktok_service import (
     TikTokAPIError,
+    TikTokAuthError,
     TikTokService,
     create_tiktok_service,
 )
@@ -66,7 +69,12 @@ async def _get_tiktok_service(
     current_user: User,
     db: Session,
 ) -> TikTokService:
-    """Get an authenticated TikTok service for the current user."""
+    """Get an authenticated TikTok service for the current user.
+
+    Proactively refreshes the access token when it is expired or within
+    5 minutes of expiry. TikTok access tokens last 24 hours; refresh tokens
+    last 365 days.
+    """
     account = (
         db.query(Account)
         .filter(
@@ -81,6 +89,24 @@ async def _get_tiktok_service(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No active TikTok account found. Please connect your TikTok account first.",
         )
+
+    # Proactively refresh if the access token is expired or expiring within 5 minutes
+    if account.token_expires_at:
+        now = datetime.utcnow()
+        if now + timedelta(minutes=5) >= account.token_expires_at:
+            logger.info(
+                f"TikTok access token for account {account.id} is expiring soon; refreshing."
+            )
+            try:
+                account = await refresh_account_token(db, account)
+            except Exception as e:
+                logger.error(
+                    f"Failed to refresh TikTok token for account {account.id}: {e}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="TikTok access token has expired and could not be refreshed. Please reconnect your account.",
+                )
 
     access_token = decrypt_token(account.access_token_enc)
     if not access_token:
@@ -104,6 +130,8 @@ async def get_account_info(
     try:
         user_info = await tt.get_user_info()
         return user_info
+    except TikTokAuthError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     finally:
@@ -124,6 +152,8 @@ async def get_creator_info(
     try:
         creator_info = await tt.query_creator_info()
         return creator_info
+    except TikTokAuthError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     finally:
@@ -160,6 +190,8 @@ async def publish_video_by_url(
             "publish_id": result["publish_id"],
             "message": "Video sent to your TikTok inbox. Open TikTok to finalize and publish.",
         }
+    except TikTokAuthError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     finally:
@@ -205,6 +237,8 @@ async def upload_video(
             "message": "Video uploaded to your TikTok inbox. Open TikTok to finalize and publish.",
         }
 
+    except TikTokAuthError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     except Exception as e:
@@ -245,6 +279,8 @@ async def publish_photo_post(
             "publish_id": result["publish_id"],
             "message": "Photo post initiated. Use /publish/status to check progress.",
         }
+    except TikTokAuthError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     finally:
@@ -276,6 +312,8 @@ async def publish_story_by_url(
             "publish_id": result["publish_id"],
             "message": "Story sent to your TikTok inbox. Open TikTok to finalize and publish.",
         }
+    except TikTokAuthError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     finally:
@@ -308,6 +346,8 @@ async def upload_story_video(
             "message": "Story video uploaded to your TikTok inbox. Open TikTok to finalize and publish.",
         }
 
+    except TikTokAuthError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     except Exception as e:
@@ -338,6 +378,8 @@ async def get_publish_status(
     try:
         status_data = await tt.get_publish_status(request.publish_id)
         return status_data
+    except TikTokAuthError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     finally:
