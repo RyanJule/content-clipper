@@ -6,7 +6,7 @@ export const useApi = () => {
   const [error, setError] = useState(null)
 
   const execute = useCallback(async (apiCall, options = {}) => {
-    const { successMessage, errorMessage, onSuccess, onError } = options
+    const { successMessage, errorMessage, onSuccess, onError, silent } = options
 
     setLoading(true)
     setError(null)
@@ -26,13 +26,18 @@ export const useApi = () => {
     } catch (err) {
       const message = err.response?.data?.detail || errorMessage || 'An error occurred'
       setError(message)
-      toast.error(message)
+
+      if (!silent) {
+        toast.error(message)
+      }
 
       if (onError) {
         onError(err)
       }
 
-      throw err
+      if (!silent) {
+        throw err
+      }
     } finally {
       setLoading(false)
     }

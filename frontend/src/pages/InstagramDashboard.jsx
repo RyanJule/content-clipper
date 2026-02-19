@@ -59,7 +59,7 @@ export default function InstagramDashboard() {
         })
         setInsights(data.data || [])
       },
-      {} // Silently fail for insights — may not have permission
+      { silent: true } // Silently fail for insights — may not have permission
     )
   }
 
