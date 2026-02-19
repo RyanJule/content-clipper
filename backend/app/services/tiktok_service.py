@@ -195,7 +195,7 @@ class TikTokService:
         )
         return result.get("data", {})
 
-    # ==================== VIDEO PUBLISHING (Inbox Upload) ====================
+    # ==================== VIDEO PUBLISHING (Direct Post) ====================
 
     async def publish_video_by_url(
         self,
@@ -210,40 +210,50 @@ class TikTokService:
         brand_organic_toggle: bool = False,
     ) -> Dict[str, Any]:
         """
-        Upload a video to the user's TikTok inbox using a publicly accessible URL.
+        Directly publish a video to TikTok using a publicly accessible URL.
 
-        The video will be pulled from the URL by TikTok's servers and placed
-        in the user's TikTok inbox. The user must open TikTok to finalize
-        and publish the video (set caption, privacy, etc.).
+        The video will be pulled from the URL by TikTok's servers and published
+        directly to the creator's TikTok feed without requiring inbox confirmation.
 
-        Uses the inbox endpoint (/post/publish/inbox/video/init/) which only
-        accepts source_info. Post metadata (title, privacy, etc.) is set by
-        the user in the TikTok app.
+        Uses the direct post endpoint (/post/publish/video/init/) with
+        post_mode=DIRECT_POST and the video.publish scope.
 
         Args:
             video_url: Publicly accessible URL of the video
-            title: Unused (kept for backward compatibility)
-            privacy_level: Unused (kept for backward compatibility)
-            disable_duet: Unused (kept for backward compatibility)
-            disable_comment: Unused (kept for backward compatibility)
-            disable_stitch: Unused (kept for backward compatibility)
-            video_cover_timestamp_ms: Unused (kept for backward compatibility)
-            brand_content_toggle: Unused (kept for backward compatibility)
-            brand_organic_toggle: Unused (kept for backward compatibility)
+            title: Video caption (max 2200 chars)
+            privacy_level: SELF_ONLY, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, or PUBLIC_TO_EVERYONE
+            disable_duet: Disable duet for this video
+            disable_comment: Disable comments for this video
+            disable_stitch: Disable stitch for this video
+            video_cover_timestamp_ms: Millisecond timestamp for the video cover frame
+            brand_content_toggle: Mark as branded content
+            brand_organic_toggle: Mark as organic branded content
 
         Returns:
             Publish ID for status tracking
         """
         body = {
+            "post_info": {
+                "title": title[:2200],
+                "privacy_level": privacy_level,
+                "disable_duet": disable_duet,
+                "disable_comment": disable_comment,
+                "disable_stitch": disable_stitch,
+                "video_cover_timestamp_ms": video_cover_timestamp_ms,
+                "brand_content_toggle": brand_content_toggle,
+                "brand_organic_toggle": brand_organic_toggle,
+            },
             "source_info": {
                 "source": "PULL_FROM_URL",
                 "video_url": video_url,
             },
+            "post_mode": "DIRECT_POST",
+            "media_type": "VIDEO",
         }
 
         result = await self._make_request(
             "POST",
-            "post/publish/inbox/video/init/",
+            "post/publish/video/init/",
             json_data=body,
         )
 
@@ -251,10 +261,10 @@ class TikTokService:
         if not publish_id:
             raise TikTokAPIError("No publish_id returned from video init")
 
-        logger.info(f"Initiated TikTok video inbox upload (URL): {publish_id}")
+        logger.info(f"Initiated TikTok direct video publish (URL): {publish_id}")
         return {"publish_id": publish_id}
 
-    # ==================== VIDEO PUBLISHING (File Upload) ====================
+    # ==================== VIDEO PUBLISHING (File Upload - Direct Post) ====================
 
     async def init_video_upload(
         self,
@@ -270,24 +280,25 @@ class TikTokService:
         brand_organic_toggle: bool = False,
     ) -> Dict[str, Any]:
         """
-        Initialize a file-based video upload to the user's TikTok inbox.
+        Initialize a file-based video upload for direct publishing to TikTok.
 
-        Uses the inbox endpoint which only accepts source_info.
-        The user finalizes post details in the TikTok app.
+        Uses the direct post endpoint (/post/publish/video/init/) with
+        post_mode=DIRECT_POST. Post metadata is applied immediately without
+        requiring the user to finalize in the TikTok app.
 
         For videos > 64MB, uses chunked upload. For smaller videos, uses single upload.
 
         Args:
             video_size: Total video file size in bytes
             chunk_size: Size of each chunk (for chunked uploads)
-            title: Unused (kept for backward compatibility)
-            privacy_level: Unused (kept for backward compatibility)
-            disable_duet: Unused (kept for backward compatibility)
-            disable_comment: Unused (kept for backward compatibility)
-            disable_stitch: Unused (kept for backward compatibility)
-            video_cover_timestamp_ms: Unused (kept for backward compatibility)
-            brand_content_toggle: Unused (kept for backward compatibility)
-            brand_organic_toggle: Unused (kept for backward compatibility)
+            title: Video caption (max 2200 chars)
+            privacy_level: SELF_ONLY, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, or PUBLIC_TO_EVERYONE
+            disable_duet: Disable duet for this video
+            disable_comment: Disable comments for this video
+            disable_stitch: Disable stitch for this video
+            video_cover_timestamp_ms: Millisecond timestamp for the video cover frame
+            brand_content_toggle: Mark as branded content
+            brand_organic_toggle: Mark as organic branded content
 
         Returns:
             Upload URL and publish_id
@@ -308,12 +319,24 @@ class TikTokService:
         }
 
         body = {
+            "post_info": {
+                "title": title[:2200],
+                "privacy_level": privacy_level,
+                "disable_duet": disable_duet,
+                "disable_comment": disable_comment,
+                "disable_stitch": disable_stitch,
+                "video_cover_timestamp_ms": video_cover_timestamp_ms,
+                "brand_content_toggle": brand_content_toggle,
+                "brand_organic_toggle": brand_organic_toggle,
+            },
             "source_info": source_info,
+            "post_mode": "DIRECT_POST",
+            "media_type": "VIDEO",
         }
 
         result = await self._make_request(
             "POST",
-            "post/publish/inbox/video/init/",
+            "post/publish/video/init/",
             json_data=body,
         )
 
@@ -324,7 +347,7 @@ class TikTokService:
         if not publish_id or not upload_url:
             raise TikTokAPIError("Failed to initialize video upload: missing publish_id or upload_url")
 
-        logger.info(f"Initialized TikTok inbox video upload: {publish_id}")
+        logger.info(f"Initialized TikTok direct video upload: {publish_id}")
         return {
             "publish_id": publish_id,
             "upload_url": upload_url,
@@ -342,18 +365,18 @@ class TikTokService:
         on_progress: Optional[callable] = None,
     ) -> Dict[str, Any]:
         """
-        Upload a video from bytes data.
+        Upload a video from bytes data and directly publish to TikTok.
 
         Handles both single-part and chunked uploads based on file size.
 
         Args:
             video_data: Video file bytes
-            title: Video caption
-            privacy_level: Privacy level
-            disable_duet: Disable duet
-            disable_comment: Disable comments
-            disable_stitch: Disable stitch
-            video_cover_timestamp_ms: Cover timestamp
+            title: Video caption (max 2200 chars)
+            privacy_level: SELF_ONLY, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, or PUBLIC_TO_EVERYONE
+            disable_duet: Disable duet for this video
+            disable_comment: Disable comments for this video
+            disable_stitch: Disable stitch for this video
+            video_cover_timestamp_ms: Millisecond timestamp for the video cover frame
             on_progress: Callback(bytes_uploaded, total_bytes)
 
         Returns:
@@ -436,16 +459,16 @@ class TikTokService:
         on_progress: Optional[callable] = None,
     ) -> Dict[str, Any]:
         """
-        Upload a video from a file path.
+        Upload a video from a file path and directly publish to TikTok.
 
         Args:
             file_path: Path to the video file
-            title: Video caption
-            privacy_level: Privacy level
-            disable_duet: Disable duet
-            disable_comment: Disable comments
-            disable_stitch: Disable stitch
-            video_cover_timestamp_ms: Cover timestamp
+            title: Video caption (max 2200 chars)
+            privacy_level: SELF_ONLY, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR, or PUBLIC_TO_EVERYONE
+            disable_duet: Disable duet for this video
+            disable_comment: Disable comments for this video
+            disable_stitch: Disable stitch for this video
+            video_cover_timestamp_ms: Millisecond timestamp for the video cover frame
             on_progress: Callback(bytes_uploaded, total_bytes)
 
         Returns:

@@ -169,10 +169,11 @@ async def publish_video_by_url(
     db: Session = Depends(get_db),
 ):
     """
-    Upload a video from a publicly accessible URL to the user's TikTok inbox.
+    Directly publish a video to TikTok from a publicly accessible URL.
 
-    TikTok will pull the video from the provided URL and place it in the
-    user's TikTok inbox. The user must open TikTok to finalize and publish.
+    TikTok will pull the video from the provided URL and publish it directly
+    to the creator's feed using the video.publish scope (DIRECT_POST mode).
+    Use /publish/status to track publishing progress.
     """
     tt = await _get_tiktok_service(current_user, db)
     try:
@@ -188,7 +189,7 @@ async def publish_video_by_url(
         return {
             "success": True,
             "publish_id": result["publish_id"],
-            "message": "Video sent to your TikTok inbox. Open TikTok to finalize and publish.",
+            "message": "Video is being published to TikTok. Use /publish/status to track progress.",
         }
     except TikTokAuthError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
@@ -211,11 +212,11 @@ async def upload_video(
     db: Session = Depends(get_db),
 ):
     """
-    Upload a video file to the user's TikTok inbox.
+    Upload a video file and directly publish it to TikTok.
 
     Accepts multipart form data with the video file. The video is uploaded
-    to TikTok and placed in the user's inbox. The user must open TikTok
-    to finalize and publish the video.
+    to TikTok and published directly to the creator's feed using the
+    video.publish scope (DIRECT_POST mode). Use /publish/status to track progress.
     """
     tt = await _get_tiktok_service(current_user, db)
     try:
@@ -234,7 +235,7 @@ async def upload_video(
         return {
             "success": True,
             "publish_id": result["publish_id"],
-            "message": "Video uploaded to your TikTok inbox. Open TikTok to finalize and publish.",
+            "message": "Video is being published to TikTok. Use /publish/status to track progress.",
         }
 
     except TikTokAuthError as e:

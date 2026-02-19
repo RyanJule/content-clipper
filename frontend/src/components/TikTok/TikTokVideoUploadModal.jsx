@@ -45,7 +45,7 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
       }
 
       await tiktokService.uploadVideo(file, metadata, onProgress)
-      toast.success('Video uploaded! Open TikTok to finalize and publish.')
+      toast.success('Video published to TikTok!')
       onSuccess()
     } catch (error) {
       console.error('Upload failed:', error)
@@ -75,11 +75,6 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
         </div>
 
         <form onSubmit={handleUpload} className="p-6 space-y-4">
-          {/* Inbox Flow Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-            Your video will be uploaded to your TikTok inbox. Open TikTok to add a caption, set privacy, and publish.
-          </div>
-
           {/* File Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -154,7 +149,7 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
               className="btn btn-primary bg-gray-900 hover:bg-gray-800"
               disabled={uploading || !file}
             >
-              {uploading ? 'Uploading...' : 'Upload Video'}
+              {uploading ? 'Publishing...' : 'Publish Video'}
             </button>
           </div>
         </form>
