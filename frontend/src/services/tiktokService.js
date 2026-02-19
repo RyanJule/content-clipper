@@ -33,6 +33,7 @@ export const tiktokService = {
     const response = await api.post('/tiktok/upload/video', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 600000, // 10 minute timeout for large uploads
+      skipGlobalErrorToast: true, // component handles error display
       onUploadProgress: progressEvent => {
         if (onProgress && progressEvent.total) {
           const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)
@@ -64,6 +65,7 @@ export const tiktokService = {
     const response = await api.post('/tiktok/upload/story', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 600000,
+      skipGlobalErrorToast: true, // component handles error display
       onUploadProgress: progressEvent => {
         if (onProgress && progressEvent.total) {
           const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total)

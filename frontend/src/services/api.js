@@ -58,7 +58,7 @@ api.interceptors.response.use(
       toast.error('Access denied')
     } else if (error.response?.status === 404) {
       toast.error('Resource not found')
-    } else if (error.response?.status >= 500) {
+    } else if (error.response?.status >= 500 && !error.config?.skipGlobalErrorToast) {
       toast.error('Server error - please try again later')
     }
     

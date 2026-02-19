@@ -412,6 +412,174 @@ class TestUploadVideoBytes:
 
 
 # ---------------------------------------------------------------------------
+# upload_video_stream
+# ---------------------------------------------------------------------------
+
+class TestUploadVideoStream:
+    """Tests for TikTokService.upload_video_stream (streaming, no full-file read)."""
+
+    def _make_mock_file(self, data: bytes):
+        """Return an async-readable mock file whose read() yields data in one call."""
+        mock_file = AsyncMock()
+        # First call returns all data; subsequent calls return b"" (EOF).
+        mock_file.read = AsyncMock(side_effect=[data, b""])
+        return mock_file
+
+    def _make_mock_file_chunked(self, chunks):
+        """Return a mock file whose successive read() calls return chunks then b''."""
+        mock_file = AsyncMock()
+        mock_file.read = AsyncMock(side_effect=list(chunks) + [b""])
+        return mock_file
+
+    @pytest.mark.asyncio
+    async def test_small_video_single_put(self, tt):
+        """A video <=64 MB triggers one PUT after one file.read()."""
+        init_response = _ok_response({
+            "data": {
+                "publish_id": "pub_stream_small",
+                "upload_url": "https://upload.tiktok.com/stream_small",
+            },
+            "error": {"code": "ok"},
+        })
+        tt.client = AsyncMock()
+        tt.client.post = AsyncMock(return_value=init_response)
+
+        put_response = httpx.Response(
+            200,
+            text="",
+            request=httpx.Request("PUT", "https://upload.tiktok.com/stream_small"),
+        )
+
+        video_data = b"\x00" * (10 * 1024 * 1024)  # 10 MB
+        mock_file = self._make_mock_file(video_data)
+
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client_instance = AsyncMock()
+            mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+            mock_client_instance.__aexit__ = AsyncMock(return_value=False)
+            mock_client_instance.put = AsyncMock(return_value=put_response)
+            mock_client_cls.return_value = mock_client_instance
+
+            result = await tt.upload_video_stream(
+                file=mock_file,
+                video_size=len(video_data),
+                title="Stream test",
+            )
+
+        assert result["publish_id"] == "pub_stream_small"
+        # One init call on the direct-post endpoint
+        called_url = tt.client.post.call_args.args[0]
+        assert "post/publish/video/init/" in called_url
+        assert "inbox" not in called_url
+        # One PUT
+        mock_client_instance.put.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_large_video_multiple_puts(self, tt):
+        """A video above LARGE_FILE_THRESHOLD is uploaded in CHUNK_SIZE increments."""
+        init_response = _ok_response({
+            "data": {
+                "publish_id": "pub_stream_large",
+                "upload_url": "https://upload.tiktok.com/stream_large",
+            },
+            "error": {"code": "ok"},
+        })
+        tt.client = AsyncMock()
+        tt.client.post = AsyncMock(return_value=init_response)
+
+        put_response = httpx.Response(
+            200,
+            text="",
+            request=httpx.Request("PUT", "https://upload.tiktok.com/stream_large"),
+        )
+
+        # Patch the thresholds to tiny values so we can test chunking without
+        # creating large byte strings.  CHUNK_SIZE=3, LARGE_FILE_THRESHOLD=9,
+        # video_size=12 → 4 chunks of 3 bytes.
+        with (
+            patch.object(TikTokService, "CHUNK_SIZE", 3),
+            patch.object(TikTokService, "LARGE_FILE_THRESHOLD", 9),
+        ):
+            chunk = b"\x00" * 3
+            video_size = 12  # > threshold, 4 chunks of 3 bytes
+            mock_file = self._make_mock_file_chunked([chunk, chunk, chunk, chunk])
+
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                instances = []
+                def make_instance(*args, **kwargs):
+                    inst = AsyncMock()
+                    inst.__aenter__ = AsyncMock(return_value=inst)
+                    inst.__aexit__ = AsyncMock(return_value=False)
+                    inst.put = AsyncMock(return_value=put_response)
+                    instances.append(inst)
+                    return inst
+                mock_client_cls.side_effect = make_instance
+
+                result = await tt.upload_video_stream(
+                    file=mock_file,
+                    video_size=video_size,
+                )
+
+        assert result["publish_id"] == "pub_stream_large"
+        # Four separate httpx clients: one per chunk.
+        assert len(instances) == 4
+        for inst in instances:
+            inst.put.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_too_large_raises_before_init(self, tt):
+        """Videos exceeding MAX_VIDEO_SIZE raise TikTokAPIError before any API call."""
+        tt.client = AsyncMock()
+        mock_file = AsyncMock()
+
+        with patch.object(TikTokService, "MAX_VIDEO_SIZE", 0):
+            with pytest.raises(TikTokAPIError, match="exceeds maximum size"):
+                await tt.upload_video_stream(file=mock_file, video_size=1)
+
+        tt.client.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_init_uses_direct_post_mode(self, tt):
+        """upload_video_stream initialises with DIRECT_POST and FILE_UPLOAD source."""
+        init_response = _ok_response({
+            "data": {
+                "publish_id": "pub_stream_mode",
+                "upload_url": "https://upload.tiktok.com/mode",
+            },
+            "error": {"code": "ok"},
+        })
+        tt.client = AsyncMock()
+        tt.client.post = AsyncMock(return_value=init_response)
+
+        put_response = httpx.Response(
+            200, text="",
+            request=httpx.Request("PUT", "https://upload.tiktok.com/mode"),
+        )
+        video_data = b"\x00" * (5 * 1024 * 1024)
+        mock_file = self._make_mock_file(video_data)
+
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            inst = AsyncMock()
+            inst.__aenter__ = AsyncMock(return_value=inst)
+            inst.__aexit__ = AsyncMock(return_value=False)
+            inst.put = AsyncMock(return_value=put_response)
+            mock_client_cls.return_value = inst
+
+            await tt.upload_video_stream(
+                file=mock_file,
+                video_size=len(video_data),
+                title="Mode test",
+                privacy_level="PUBLIC_TO_EVERYONE",
+            )
+
+        body = tt.client.post.call_args.kwargs["json"]
+        assert body["post_mode"] == "DIRECT_POST"
+        assert body["media_type"] == "VIDEO"
+        assert body["source_info"]["source"] == "FILE_UPLOAD"
+        assert body["post_info"]["privacy_level"] == "PUBLIC_TO_EVERYONE"
+
+
+# ---------------------------------------------------------------------------
 # get_publish_status
 # ---------------------------------------------------------------------------
 

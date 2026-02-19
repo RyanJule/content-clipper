@@ -217,13 +217,14 @@ async def upload_video(
     Accepts multipart form data with the video file. The video is uploaded
     to TikTok and published directly to the creator's feed using the
     video.publish scope (DIRECT_POST mode). Use /publish/status to track progress.
+
+    Uses streaming upload when file.size is available (FastAPI 0.103+) to
+    avoid loading the entire video into memory, preventing OOM crashes on
+    large uploads that would otherwise cause a 502 from the proxy layer.
     """
     tt = await _get_tiktok_service(current_user, db)
     try:
-        video_data = await file.read()
-
-        result = await tt.upload_video_bytes(
-            video_data=video_data,
+        common_kwargs = dict(
             title=title,
             privacy_level=privacy_level,
             disable_duet=disable_duet,
@@ -231,6 +232,29 @@ async def upload_video(
             disable_stitch=disable_stitch,
             video_cover_timestamp_ms=video_cover_timestamp_ms,
         )
+
+        video_size = file.size
+
+        if video_size is not None:
+            # Streaming path: never loads more than one chunk at a time.
+            # file.size is populated by FastAPI's multipart parser (0.103+).
+            if video_size == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Video file is empty.",
+                )
+            result = await tt.upload_video_stream(
+                file=file,
+                video_size=video_size,
+                **common_kwargs,
+            )
+        else:
+            # Fallback for clients that don't report Content-Length on the part.
+            video_data = await file.read()
+            result = await tt.upload_video_bytes(
+                video_data=video_data,
+                **common_kwargs,
+            )
 
         return {
             "success": True,
