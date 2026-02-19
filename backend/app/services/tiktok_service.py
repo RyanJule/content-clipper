@@ -64,6 +64,9 @@ class TikTokService:
     MAX_PHOTO_IMAGES = 35
     MIN_PHOTO_IMAGES = 1
     CHUNK_SIZE = 10 * 1024 * 1024  # 10MB chunks for file upload
+    # Videos at or below this size are uploaded as a single chunk.
+    # Videos above it are split into CHUNK_SIZE pieces.
+    LARGE_FILE_THRESHOLD = 64 * 1024 * 1024  # 64MB
 
     def __init__(self, access_token: str):
         self.access_token = access_token
@@ -304,7 +307,7 @@ class TikTokService:
             Upload URL and publish_id
         """
         # Use chunked upload for large files (> 64MB), single chunk for small files
-        if video_size > 64 * 1024 * 1024:
+        if video_size > self.LARGE_FILE_THRESHOLD:
             actual_chunk_size = chunk_size or self.CHUNK_SIZE
             total_chunk_count = -(-video_size // actual_chunk_size)  # ceiling division
         else:
@@ -352,6 +355,92 @@ class TikTokService:
             "publish_id": publish_id,
             "upload_url": upload_url,
         }
+
+    async def upload_video_stream(
+        self,
+        file: Any,
+        video_size: int,
+        title: str = "",
+        privacy_level: str = "SELF_ONLY",
+        disable_duet: bool = False,
+        disable_comment: bool = False,
+        disable_stitch: bool = False,
+        video_cover_timestamp_ms: int = 0,
+    ) -> Dict[str, Any]:
+        """
+        Upload a video by streaming from a file-like object (e.g. FastAPI UploadFile).
+
+        Unlike upload_video_bytes, this method never loads the entire file into
+        memory.  For videos <=64 MB a single PUT is issued (file is read once,
+        at most 64 MB in memory).  For videos >64 MB the file is read and
+        uploaded in CHUNK_SIZE increments so memory usage stays bounded.
+
+        Args:
+            file: An async-readable file-like object (must support ``await file.read(n)``).
+            video_size: Exact byte length of the video (from UploadFile.size).
+            title: Video caption (max 2200 chars).
+            privacy_level: TikTok privacy level string.
+            disable_duet / disable_comment / disable_stitch: interaction flags.
+            video_cover_timestamp_ms: Cover frame timestamp in milliseconds.
+
+        Returns:
+            Dict with ``publish_id``.
+        """
+        if video_size > self.MAX_VIDEO_SIZE:
+            raise TikTokAPIError(f"Video file exceeds maximum size of {self.MAX_VIDEO_SIZE} bytes")
+
+        # Re-use init_video_upload which handles chunk strategy and sends post_info.
+        init_result = await self.init_video_upload(
+            video_size=video_size,
+            title=title,
+            privacy_level=privacy_level,
+            disable_duet=disable_duet,
+            disable_comment=disable_comment,
+            disable_stitch=disable_stitch,
+            video_cover_timestamp_ms=video_cover_timestamp_ms,
+        )
+
+        upload_url = init_result["upload_url"]
+        publish_id = init_result["publish_id"]
+
+        if video_size <= self.LARGE_FILE_THRESHOLD:
+            # Single-chunk upload: read the whole file (at most 64 MB).
+            video_data = await file.read()
+            headers = {
+                "Content-Range": f"bytes 0-{video_size - 1}/{video_size}",
+                "Content-Type": "video/mp4",
+            }
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(60.0, write=600.0, read=600.0)
+            ) as client:
+                response = await client.put(upload_url, content=video_data, headers=headers)
+                response.raise_for_status()
+        else:
+            # Multi-chunk upload: read CHUNK_SIZE bytes at a time.
+            bytes_uploaded = 0
+            while bytes_uploaded < video_size:
+                remaining = video_size - bytes_uploaded
+                to_read = min(self.CHUNK_SIZE, remaining)
+                chunk = await file.read(to_read)
+                if not chunk:
+                    break
+
+                chunk_len = len(chunk)
+                chunk_end = bytes_uploaded + chunk_len - 1
+                headers = {
+                    "Content-Range": f"bytes {bytes_uploaded}-{chunk_end}/{video_size}",
+                    "Content-Type": "video/mp4",
+                }
+                async with httpx.AsyncClient(
+                    timeout=httpx.Timeout(60.0, write=300.0, read=300.0)
+                ) as client:
+                    response = await client.put(upload_url, content=chunk, headers=headers)
+                    response.raise_for_status()
+
+                bytes_uploaded += chunk_len
+
+        logger.info(f"Video stream upload complete for publish_id: {publish_id}")
+        return {"publish_id": publish_id}
 
     async def upload_video_bytes(
         self,
@@ -401,13 +490,15 @@ class TikTokService:
         upload_url = init_result["upload_url"]
         publish_id = init_result["publish_id"]
 
-        if video_size <= 64 * 1024 * 1024:
+        if video_size <= self.LARGE_FILE_THRESHOLD:
             # Single upload for small files
             headers = {
                 "Content-Range": f"bytes 0-{video_size - 1}/{video_size}",
                 "Content-Type": "video/mp4",
             }
-            async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=600.0)) as client:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(60.0, write=600.0, read=600.0)
+            ) as client:
                 response = await client.put(
                     upload_url,
                     content=video_data,
@@ -431,7 +522,9 @@ class TikTokService:
                     "Content-Type": "video/mp4",
                 }
 
-                async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=300.0)) as client:
+                async with httpx.AsyncClient(
+                    timeout=httpx.Timeout(60.0, write=300.0, read=300.0)
+                ) as client:
                     response = await client.put(
                         upload_url,
                         content=chunk,
@@ -511,7 +604,9 @@ class TikTokService:
                 max_retries = 3
                 for attempt in range(max_retries):
                     try:
-                        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=300.0)) as client:
+                        async with httpx.AsyncClient(
+                            timeout=httpx.Timeout(60.0, write=300.0, read=300.0)
+                        ) as client:
                             response = await client.put(
                                 upload_url,
                                 content=chunk,
@@ -684,7 +779,7 @@ class TikTokService:
             "video_size": video_size,
         }
 
-        if video_size > 64 * 1024 * 1024:
+        if video_size > self.LARGE_FILE_THRESHOLD:
             chunk_size = self.CHUNK_SIZE
             total_chunk_count = -(-video_size // chunk_size)
             source_info["chunk_size"] = chunk_size
@@ -739,7 +834,9 @@ class TikTokService:
             "Content-Range": f"bytes 0-{video_size - 1}/{video_size}",
             "Content-Type": "video/mp4",
         }
-        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=600.0)) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(60.0, write=600.0, read=600.0)
+        ) as client:
             response = await client.put(
                 upload_url,
                 content=video_data,
