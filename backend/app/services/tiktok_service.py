@@ -158,9 +158,11 @@ class TikTokService:
                 pass
             error_info = error_data.get("error", {})
             error_msg = error_info.get("message", str(e))
-            error_code = error_info.get("code", "")
+            error_code = error_info.get("code", "unknown")
+            log_id = error_info.get("log_id", "")
             logger.error(
-                f"TikTok API error ({e.response.status_code}) on {endpoint}: {error_msg}"
+                f"TikTok API error ({e.response.status_code}) on {endpoint}: "
+                f"{error_msg} (code: {error_code}, log_id: {log_id})"
             )
             if e.response.status_code == 401 or error_code in _TIKTOK_AUTH_ERROR_CODES:
                 raise TikTokAuthError(
@@ -168,7 +170,7 @@ class TikTokService:
                     upstream_status=e.response.status_code,
                 )
             raise TikTokAPIError(
-                f"TikTok API error ({e.response.status_code}): {error_msg}",
+                f"TikTok API error ({e.response.status_code}): {error_msg} (code: {error_code})",
                 upstream_status=e.response.status_code,
             )
         except httpx.TimeoutException:
@@ -812,16 +814,22 @@ class TikTokService:
         Returns:
             Upload URL and publish_id
         """
+        # chunk_size and total_chunk_count are required by TikTok's FILE_UPLOAD
+        # spec regardless of file size. For small files, use the file size as a
+        # single chunk (matching the behavior of init_video_upload).
+        if video_size > self.LARGE_FILE_THRESHOLD:
+            chunk_size = self.CHUNK_SIZE
+            total_chunk_count = -(-video_size // chunk_size)  # ceiling division
+        else:
+            chunk_size = video_size
+            total_chunk_count = 1
+
         source_info = {
             "source": "FILE_UPLOAD",
             "video_size": video_size,
+            "chunk_size": chunk_size,
+            "total_chunk_count": total_chunk_count,
         }
-
-        if video_size > self.LARGE_FILE_THRESHOLD:
-            chunk_size = self.CHUNK_SIZE
-            total_chunk_count = -(-video_size // chunk_size)
-            source_info["chunk_size"] = chunk_size
-            source_info["total_chunk_count"] = total_chunk_count
 
         body = {
             "source_info": source_info,

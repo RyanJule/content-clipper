@@ -147,10 +147,23 @@ async def _validate_with_creator_info(
     Returns the (potentially corrected) tuple of posting constraints.
     """
     creator_info = await tt.query_creator_info()
+    logger.info(f"TikTok creator_info response: {creator_info}")
 
-    # Validate privacy level against creator-allowed options
+    # Validate privacy level against creator-allowed options.
+    # An empty list means TikTok returned no allowed privacy levels for this
+    # creator — proceeding would cause a 403 on the subsequent video/init call.
     allowed_privacy = creator_info.get("privacy_level_options", [])
-    if allowed_privacy and privacy_level not in allowed_privacy:
+    if not allowed_privacy:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "TikTok creator_info returned no allowed privacy levels for this account. "
+                "The account may be restricted from posting. "
+                "Please check your TikTok account status and app permissions."
+            ),
+        )
+
+    if privacy_level not in allowed_privacy:
         # Fall back to the first allowed option rather than failing with a
         # confusing error; the endpoint still surfaces the issue via logging.
         logger.warning(
@@ -164,9 +177,18 @@ async def _validate_with_creator_info(
     # error from TikTok's API even when creator_info/query/ was called correctly.
     if brand_content_toggle and privacy_level == "SELF_ONLY":
         non_private = next(
-            (opt for opt in (allowed_privacy or []) if opt != "SELF_ONLY"),
-            "PUBLIC_TO_EVERYONE",
+            (opt for opt in allowed_privacy if opt != "SELF_ONLY"),
+            None,
         )
+        if non_private is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "Branded content (brand_content_toggle=True) requires a public or "
+                    "friends-only privacy level, but this account only allows SELF_ONLY. "
+                    "Disable brand_content_toggle or use a public privacy level."
+                ),
+            )
         logger.warning(
             f"brand_content_toggle=True is incompatible with SELF_ONLY privacy. "
             f"Overriding to '{non_private}'."
@@ -180,6 +202,13 @@ async def _validate_with_creator_info(
         disable_comment = True
     if creator_info.get("stitch_disabled"):
         disable_stitch = True
+
+    max_duration_sec = creator_info.get("max_video_post_duration_sec")
+    if max_duration_sec:
+        logger.info(
+            f"TikTok creator max_video_post_duration_sec: {max_duration_sec}s. "
+            "Callers should validate video duration before initiating upload."
+        )
 
     return privacy_level, disable_duet, disable_comment, disable_stitch
 
