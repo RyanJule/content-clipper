@@ -23,8 +23,18 @@ logger = logging.getLogger(__name__)
 
 
 class TikTokAPIError(Exception):
-    """Custom exception for TikTok API errors"""
-    pass
+    """Custom exception for TikTok API errors.
+
+    Attributes:
+        upstream_status: The HTTP status code returned by TikTok's API, if available.
+            Callers can use this to distinguish policy/client errors (4xx) from upstream
+            server failures (5xx) and return a more appropriate status code to their own
+            clients rather than always returning 502.
+    """
+
+    def __init__(self, message: str, upstream_status: Optional[int] = None):
+        super().__init__(message)
+        self.upstream_status = upstream_status
 
 
 class TikTokAuthError(TikTokAPIError):
@@ -151,8 +161,14 @@ class TikTokService:
             error_code = error_info.get("code", "")
             logger.error(f"TikTok API error ({e.response.status_code}): {error_msg}")
             if e.response.status_code == 401 or error_code in _TIKTOK_AUTH_ERROR_CODES:
-                raise TikTokAuthError(f"TikTok API error: {error_msg}")
-            raise TikTokAPIError(f"TikTok API error: {error_msg}")
+                raise TikTokAuthError(
+                    f"TikTok API error: {error_msg}",
+                    upstream_status=e.response.status_code,
+                )
+            raise TikTokAPIError(
+                f"TikTok API error ({e.response.status_code}): {error_msg}",
+                upstream_status=e.response.status_code,
+            )
         except httpx.TimeoutException:
             raise TikTokAPIError("TikTok API request timed out")
         except TikTokAPIError:
@@ -366,6 +382,8 @@ class TikTokService:
         disable_comment: bool = False,
         disable_stitch: bool = False,
         video_cover_timestamp_ms: int = 0,
+        brand_content_toggle: bool = False,
+        brand_organic_toggle: bool = False,
     ) -> Dict[str, Any]:
         """
         Upload a video by streaming from a file-like object (e.g. FastAPI UploadFile).
@@ -398,6 +416,8 @@ class TikTokService:
             disable_comment=disable_comment,
             disable_stitch=disable_stitch,
             video_cover_timestamp_ms=video_cover_timestamp_ms,
+            brand_content_toggle=brand_content_toggle,
+            brand_organic_toggle=brand_organic_toggle,
         )
 
         upload_url = init_result["upload_url"]
@@ -451,6 +471,8 @@ class TikTokService:
         disable_comment: bool = False,
         disable_stitch: bool = False,
         video_cover_timestamp_ms: int = 0,
+        brand_content_toggle: bool = False,
+        brand_organic_toggle: bool = False,
         on_progress: Optional[callable] = None,
     ) -> Dict[str, Any]:
         """
@@ -485,6 +507,8 @@ class TikTokService:
             disable_comment=disable_comment,
             disable_stitch=disable_stitch,
             video_cover_timestamp_ms=video_cover_timestamp_ms,
+            brand_content_toggle=brand_content_toggle,
+            brand_organic_toggle=brand_organic_toggle,
         )
 
         upload_url = init_result["upload_url"]
