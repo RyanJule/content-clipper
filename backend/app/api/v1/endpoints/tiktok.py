@@ -133,7 +133,13 @@ async def get_account_info(
     except TikTokAuthError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        # TikTok 4xx = policy/client error → 422; TikTok 5xx or unknown → 502
+        http_status = (
+            status.HTTP_422_UNPROCESSABLE_ENTITY
+            if e.upstream_status is not None and 400 <= e.upstream_status < 500
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(status_code=http_status, detail=str(e))
     finally:
         await tt.close()
 
@@ -155,7 +161,13 @@ async def get_creator_info(
     except TikTokAuthError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        # TikTok 4xx = policy/client error → 422; TikTok 5xx or unknown → 502
+        http_status = (
+            status.HTTP_422_UNPROCESSABLE_ENTITY
+            if e.upstream_status is not None and 400 <= e.upstream_status < 500
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(status_code=http_status, detail=str(e))
     finally:
         await tt.close()
 
@@ -194,7 +206,13 @@ async def publish_video_by_url(
     except TikTokAuthError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        # TikTok 4xx = policy/client error → 422; TikTok 5xx or unknown → 502
+        http_status = (
+            status.HTTP_422_UNPROCESSABLE_ENTITY
+            if e.upstream_status is not None and 400 <= e.upstream_status < 500
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(status_code=http_status, detail=str(e))
     finally:
         await tt.close()
 
@@ -208,6 +226,8 @@ async def upload_video(
     disable_comment: bool = Form(False),
     disable_stitch: bool = Form(False),
     video_cover_timestamp_ms: int = Form(0),
+    brand_content_toggle: bool = Form(False),
+    brand_organic_toggle: bool = Form(False),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -231,6 +251,8 @@ async def upload_video(
             disable_comment=disable_comment,
             disable_stitch=disable_stitch,
             video_cover_timestamp_ms=video_cover_timestamp_ms,
+            brand_content_toggle=brand_content_toggle,
+            brand_organic_toggle=brand_organic_toggle,
         )
 
         video_size = file.size
@@ -265,7 +287,13 @@ async def upload_video(
     except TikTokAuthError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        # TikTok 4xx = policy/client error → 422; TikTok 5xx or unknown → 502
+        http_status = (
+            status.HTTP_422_UNPROCESSABLE_ENTITY
+            if e.upstream_status is not None and 400 <= e.upstream_status < 500
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(status_code=http_status, detail=str(e))
     except Exception as e:
         logger.error(f"TikTok video upload failed: {str(e)}")
         raise HTTPException(
@@ -307,7 +335,13 @@ async def publish_photo_post(
     except TikTokAuthError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        # TikTok 4xx = policy/client error → 422; TikTok 5xx or unknown → 502
+        http_status = (
+            status.HTTP_422_UNPROCESSABLE_ENTITY
+            if e.upstream_status is not None and 400 <= e.upstream_status < 500
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(status_code=http_status, detail=str(e))
     finally:
         await tt.close()
 
@@ -340,7 +374,13 @@ async def publish_story_by_url(
     except TikTokAuthError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        # TikTok 4xx = policy/client error → 422; TikTok 5xx or unknown → 502
+        http_status = (
+            status.HTTP_422_UNPROCESSABLE_ENTITY
+            if e.upstream_status is not None and 400 <= e.upstream_status < 500
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(status_code=http_status, detail=str(e))
     finally:
         await tt.close()
 
@@ -374,7 +414,13 @@ async def upload_story_video(
     except TikTokAuthError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        # TikTok 4xx = policy/client error → 422; TikTok 5xx or unknown → 502
+        http_status = (
+            status.HTTP_422_UNPROCESSABLE_ENTITY
+            if e.upstream_status is not None and 400 <= e.upstream_status < 500
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(status_code=http_status, detail=str(e))
     except Exception as e:
         logger.error(f"TikTok story upload failed: {str(e)}")
         raise HTTPException(
@@ -406,6 +452,12 @@ async def get_publish_status(
     except TikTokAuthError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except TikTokAPIError as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        # TikTok 4xx = policy/client error → 422; TikTok 5xx or unknown → 502
+        http_status = (
+            status.HTTP_422_UNPROCESSABLE_ENTITY
+            if e.upstream_status is not None and 400 <= e.upstream_status < 500
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(status_code=http_status, detail=str(e))
     finally:
         await tt.close()

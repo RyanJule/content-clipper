@@ -29,6 +29,8 @@ export const tiktokService = {
     formData.append('disable_comment', metadata.disable_comment || false)
     formData.append('disable_stitch', metadata.disable_stitch || false)
     formData.append('video_cover_timestamp_ms', metadata.video_cover_timestamp_ms || 0)
+    formData.append('brand_content_toggle', metadata.brand_content_toggle || false)
+    formData.append('brand_organic_toggle', metadata.brand_organic_toggle || false)
 
     const response = await api.post('/tiktok/upload/video', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
