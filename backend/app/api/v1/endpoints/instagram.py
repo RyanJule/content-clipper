@@ -7,8 +7,10 @@ Provides frontend-facing endpoints for Instagram Graph API features:
 - Comment management
 - Insights/analytics
 - Message management
+- Direct publishing (image, carousel, video, reel)
 """
 
+import asyncio
 import logging
 from typing import List, Optional
 
@@ -21,6 +23,7 @@ from app.core.database import get_db
 from app.core.crypto import decrypt_token
 from app.models.account import Account
 from app.models.user import User
+from app.services import media_service
 from app.services.instagram_graph_service import (
     InstagramGraphAPI,
     InstagramGraphAPIError,
@@ -44,6 +47,26 @@ class SendMessageRequest(BaseModel):
 
 class HideCommentRequest(BaseModel):
     hide: bool = True
+
+
+class PublishImageRequest(BaseModel):
+    media_id: int
+    caption: Optional[str] = None
+
+
+class PublishCarouselRequest(BaseModel):
+    media_ids: List[int]
+    caption: Optional[str] = None
+
+
+class PublishVideoRequest(BaseModel):
+    media_id: int
+    caption: Optional[str] = None
+
+
+class PublishReelRequest(BaseModel):
+    media_id: int
+    caption: Optional[str] = None
 
 
 # ==================== Helpers ====================
@@ -315,6 +338,174 @@ async def send_message(
             ig_account_id, request.recipient_id, request.message
         )
         return {"id": msg_id, "success": True}
+    except InstagramGraphAPIError as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+    finally:
+        await ig_api.close()
+
+
+# ==================== Publishing Helpers ====================
+
+def _get_media_url_for_user(media_id: int, user_id: int, db: Session) -> str:
+    """Retrieve a presigned URL for a media item owned by the given user.
+
+    The URL is valid for 2 hours — sufficient for Instagram to fetch and
+    process the media.
+
+    Raises HTTPException (404/403/500) on failure.
+    """
+    item = media_service.get_media(db, media_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media not found")
+    if item.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this media",
+        )
+    url = media_service.get_media_url(item, expires=7200)
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate a public URL for the media",
+        )
+    return url
+
+
+async def _wait_for_video_container(ig_api: InstagramGraphAPI, container_id: str) -> None:
+    """Poll the Instagram container status until FINISHED or ERROR.
+
+    Raises HTTPException on processing error or timeout (3 minutes).
+    """
+    max_attempts = 90  # 90 × 2 s = 3 minutes
+    for _ in range(max_attempts):
+        await asyncio.sleep(2)
+        try:
+            status_data = await ig_api.check_container_status(container_id)
+            status_code = status_data.get("status_code", "")
+            if status_code == "FINISHED":
+                return
+            if status_code == "ERROR":
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Instagram video processing failed: {status_data.get('status', 'unknown error')}",
+                )
+        except InstagramGraphAPIError as e:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+    raise HTTPException(
+        status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+        detail="Timed out waiting for Instagram video processing",
+    )
+
+
+# ==================== Direct Publishing ====================
+
+@router.post("/publish/image")
+async def publish_image(
+    request: PublishImageRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Publish a single image post directly to Instagram."""
+    ig_api, ig_account_id = await _get_instagram_service(current_user, db)
+    try:
+        image_url = _get_media_url_for_user(request.media_id, current_user.id, db)
+        container_id = await ig_api.create_image_container(
+            ig_account_id, image_url, caption=request.caption
+        )
+        media_id = await ig_api.publish_container(ig_account_id, container_id)
+        return {"id": media_id, "success": True}
+    except HTTPException:
+        raise
+    except InstagramGraphAPIError as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+    finally:
+        await ig_api.close()
+
+
+@router.post("/publish/carousel")
+async def publish_carousel(
+    request: PublishCarouselRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Publish a carousel post (2–10 images) directly to Instagram."""
+    if len(request.media_ids) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Carousel requires at least 2 images",
+        )
+    if len(request.media_ids) > 10:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Carousel supports a maximum of 10 images",
+        )
+    ig_api, ig_account_id = await _get_instagram_service(current_user, db)
+    try:
+        # Create child containers for each image
+        child_ids: List[str] = []
+        for mid in request.media_ids:
+            image_url = _get_media_url_for_user(mid, current_user.id, db)
+            child_id = await ig_api.create_image_container(
+                ig_account_id, image_url, is_carousel_item=True
+            )
+            child_ids.append(child_id)
+
+        # Create the carousel container and publish
+        carousel_id = await ig_api.create_carousel_container(
+            ig_account_id, child_ids, caption=request.caption
+        )
+        media_id = await ig_api.publish_container(ig_account_id, carousel_id)
+        return {"id": media_id, "success": True}
+    except HTTPException:
+        raise
+    except InstagramGraphAPIError as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+    finally:
+        await ig_api.close()
+
+
+@router.post("/publish/video")
+async def publish_video(
+    request: PublishVideoRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Publish a video post directly to Instagram."""
+    ig_api, ig_account_id = await _get_instagram_service(current_user, db)
+    try:
+        video_url = _get_media_url_for_user(request.media_id, current_user.id, db)
+        container_id = await ig_api.create_video_container(
+            ig_account_id, video_url, caption=request.caption, media_type="VIDEO"
+        )
+        await _wait_for_video_container(ig_api, container_id)
+        media_id = await ig_api.publish_container(ig_account_id, container_id)
+        return {"id": media_id, "success": True}
+    except HTTPException:
+        raise
+    except InstagramGraphAPIError as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+    finally:
+        await ig_api.close()
+
+
+@router.post("/publish/reel")
+async def publish_reel(
+    request: PublishReelRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Publish a Reel directly to Instagram."""
+    ig_api, ig_account_id = await _get_instagram_service(current_user, db)
+    try:
+        video_url = _get_media_url_for_user(request.media_id, current_user.id, db)
+        container_id = await ig_api.create_video_container(
+            ig_account_id, video_url, caption=request.caption, media_type="REELS"
+        )
+        await _wait_for_video_container(ig_api, container_id)
+        media_id = await ig_api.publish_container(ig_account_id, container_id)
+        return {"id": media_id, "success": True}
+    except HTTPException:
+        raise
     except InstagramGraphAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     finally:
