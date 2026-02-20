@@ -128,6 +128,7 @@ async def _validate_with_creator_info(
     disable_duet: bool,
     disable_comment: bool,
     disable_stitch: bool,
+    brand_content_toggle: bool = False,
 ) -> tuple[str, bool, bool, bool]:
     """Call TikTok's creator_info/query/ and enforce posting constraints.
 
@@ -140,6 +141,9 @@ async def _validate_with_creator_info(
     any creator-level interaction locks (duet_disabled, comment_disabled,
     stitch_disabled) returned by TikTok.
 
+    Also enforces TikTok's guideline that branded content (brand_content_toggle=True)
+    cannot be set to SELF_ONLY privacy — doing so triggers a 403 from TikTok.
+
     Returns the (potentially corrected) tuple of posting constraints.
     """
     creator_info = await tt.query_creator_info()
@@ -148,12 +152,26 @@ async def _validate_with_creator_info(
     allowed_privacy = creator_info.get("privacy_level_options", [])
     if allowed_privacy and privacy_level not in allowed_privacy:
         # Fall back to the first allowed option rather than failing with a
-        # confusing error; the endpoint still surface the issue via logging.
+        # confusing error; the endpoint still surfaces the issue via logging.
         logger.warning(
             f"Requested privacy_level '{privacy_level}' is not in creator's allowed "
             f"options {allowed_privacy}. Falling back to '{allowed_privacy[0]}'."
         )
         privacy_level = allowed_privacy[0]
+
+    # TikTok's Content Sharing Guidelines forbid combining brand_content_toggle=True
+    # with SELF_ONLY privacy. This combination triggers a 403 "integration guidelines"
+    # error from TikTok's API even when creator_info/query/ was called correctly.
+    if brand_content_toggle and privacy_level == "SELF_ONLY":
+        non_private = next(
+            (opt for opt in (allowed_privacy or []) if opt != "SELF_ONLY"),
+            "PUBLIC_TO_EVERYONE",
+        )
+        logger.warning(
+            f"brand_content_toggle=True is incompatible with SELF_ONLY privacy. "
+            f"Overriding to '{non_private}'."
+        )
+        privacy_level = non_private
 
     # Enforce creator-level interaction locks
     if creator_info.get("duet_disabled"):
@@ -245,6 +263,7 @@ async def publish_video_by_url(
                 request.disable_duet,
                 request.disable_comment,
                 request.disable_stitch,
+                brand_content_toggle=request.brand_content_toggle,
             )
         )
         result = await tt.publish_video_by_url(
@@ -309,7 +328,12 @@ async def upload_video(
         # it returns 403 "Please review our integration guidelines".
         privacy_level, disable_duet, disable_comment, disable_stitch = (
             await _validate_with_creator_info(
-                tt, privacy_level, disable_duet, disable_comment, disable_stitch
+                tt,
+                privacy_level,
+                disable_duet,
+                disable_comment,
+                disable_stitch,
+                brand_content_toggle=brand_content_toggle,
             )
         )
 
