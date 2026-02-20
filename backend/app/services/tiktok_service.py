@@ -573,6 +573,8 @@ class TikTokService:
         disable_comment: bool = False,
         disable_stitch: bool = False,
         video_cover_timestamp_ms: int = 0,
+        brand_content_toggle: bool = False,
+        brand_organic_toggle: bool = False,
         on_progress: Optional[callable] = None,
     ) -> Dict[str, Any]:
         """
@@ -586,6 +588,8 @@ class TikTokService:
             disable_comment: Disable comments for this video
             disable_stitch: Disable stitch for this video
             video_cover_timestamp_ms: Millisecond timestamp for the video cover frame
+            brand_content_toggle: Mark as branded content (third-party promotion)
+            brand_organic_toggle: Mark as organic branded content (own brand promotion)
             on_progress: Callback(bytes_uploaded, total_bytes)
 
         Returns:
@@ -605,6 +609,8 @@ class TikTokService:
             disable_comment=disable_comment,
             disable_stitch=disable_stitch,
             video_cover_timestamp_ms=video_cover_timestamp_ms,
+            brand_content_toggle=brand_content_toggle,
+            brand_organic_toggle=brand_organic_toggle,
         )
 
         upload_url = init_result["upload_url"]

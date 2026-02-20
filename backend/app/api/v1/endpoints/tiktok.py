@@ -44,6 +44,8 @@ class VideoPublishByUrlRequest(BaseModel):
     disable_comment: bool = False
     disable_stitch: bool = False
     video_cover_timestamp_ms: int = 0
+    brand_content_toggle: bool = False
+    brand_organic_toggle: bool = False
 
 
 class PhotoPostRequest(BaseModel):
@@ -52,6 +54,8 @@ class PhotoPostRequest(BaseModel):
     privacy_level: str = "SELF_ONLY"
     disable_comment: bool = False
     auto_add_music: bool = True
+    brand_content_toggle: bool = False
+    brand_organic_toggle: bool = False
 
 
 class StoryPublishRequest(BaseModel):
@@ -251,6 +255,8 @@ async def publish_video_by_url(
             disable_comment=disable_comment,
             disable_stitch=disable_stitch,
             video_cover_timestamp_ms=request.video_cover_timestamp_ms,
+            brand_content_toggle=request.brand_content_toggle,
+            brand_organic_toggle=request.brand_organic_toggle,
         )
         return {
             "success": True,
@@ -400,6 +406,8 @@ async def publish_photo_post(
             privacy_level=privacy_level,
             disable_comment=disable_comment,
             auto_add_music=request.auto_add_music,
+            brand_content_toggle=request.brand_content_toggle,
+            brand_organic_toggle=request.brand_organic_toggle,
         )
         return {
             "success": True,
