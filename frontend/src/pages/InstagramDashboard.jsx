@@ -4,13 +4,14 @@ import {
   Heart,
   Image,
   MessageCircle,
-  MessageSquare,
   Plus,
   Trash2,
+  Upload,
   Users,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import InstagramUploadModal from '../components/Instagram/InstagramUploadModal'
 import { useApi } from '../hooks/useApi'
 import { instagramService } from '../services/instagramService'
 
@@ -23,6 +24,7 @@ export default function InstagramDashboard() {
   const [comments, setComments] = useState([])
   const [replyText, setReplyText] = useState('')
   const [replyingTo, setReplyingTo] = useState(null)
+  const [showUploadModal, setShowUploadModal] = useState(false)
 
   useEffect(() => {
     loadAccountInfo()
@@ -152,9 +154,18 @@ export default function InstagramDashboard() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">Instagram Dashboard</h2>
-        <p className="text-gray-600 mt-1">Manage your Instagram Business account</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">Instagram Dashboard</h2>
+          <p className="text-gray-600 mt-1">Manage your Instagram Business account</p>
+        </div>
+        <button
+          onClick={() => setShowUploadModal(true)}
+          className="btn btn-primary flex items-center space-x-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+        >
+          <Upload className="w-4 h-4" />
+          <span>New Post</span>
+        </button>
       </div>
 
       {/* Account Info + Stats */}
@@ -375,6 +386,16 @@ export default function InstagramDashboard() {
           )}
         </div>
       </div>
+
+      {showUploadModal && (
+        <InstagramUploadModal
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={() => {
+            setShowUploadModal(false)
+            loadMedia()
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -139,7 +139,8 @@ class InstagramGraphAPI:
         image_url: str,
         caption: Optional[str] = None,
         location_id: Optional[str] = None,
-        user_tags: Optional[List[Dict[str, Any]]] = None
+        user_tags: Optional[List[Dict[str, Any]]] = None,
+        is_carousel_item: bool = False
     ) -> str:
         """
         Create a media container for a single image.
@@ -153,6 +154,7 @@ class InstagramGraphAPI:
             caption: Post caption (optional)
             location_id: Location ID for geo-tagging (optional)
             user_tags: List of user tags (optional)
+            is_carousel_item: Whether this image is a child item of a carousel (optional)
 
         Returns:
             Container ID for publishing
@@ -161,6 +163,8 @@ class InstagramGraphAPI:
             "image_url": image_url,
         }
 
+        if is_carousel_item:
+            data["is_carousel_item"] = "true"
         if caption:
             data["caption"] = caption
         if location_id:

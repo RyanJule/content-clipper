@@ -77,4 +77,42 @@ export const instagramService = {
     })
     return response.data
   },
+
+  // ==================== Direct Publishing ====================
+
+  publishImage: async (mediaId, caption) => {
+    const response = await api.post(
+      '/instagram/publish/image',
+      { media_id: mediaId, caption: caption || null },
+      { timeout: 60000 },
+    )
+    return response.data
+  },
+
+  publishCarousel: async (mediaIds, caption) => {
+    const response = await api.post(
+      '/instagram/publish/carousel',
+      { media_ids: mediaIds, caption: caption || null },
+      { timeout: 60000 },
+    )
+    return response.data
+  },
+
+  publishVideo: async (mediaId, caption) => {
+    const response = await api.post(
+      '/instagram/publish/video',
+      { media_id: mediaId, caption: caption || null },
+      { timeout: 300000 }, // 5 minutes for video processing
+    )
+    return response.data
+  },
+
+  publishReel: async (mediaId, caption) => {
+    const response = await api.post(
+      '/instagram/publish/reel',
+      { media_id: mediaId, caption: caption || null },
+      { timeout: 300000 }, // 5 minutes for video processing
+    )
+    return response.data
+  },
 }
