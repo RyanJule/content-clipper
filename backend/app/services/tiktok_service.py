@@ -143,7 +143,7 @@ class TikTokService:
                 error_msg = error.get("message", "Unknown TikTok API error")
                 log_id = error.get("log_id", "")
                 error_code = error["code"]
-                full_msg = f"TikTok API error: {error_msg} (code: {error_code}, log_id: {log_id})"
+                full_msg = f"TikTok API error on {endpoint}: {error_msg} (code: {error_code}, log_id: {log_id})"
                 if error_code in _TIKTOK_AUTH_ERROR_CODES:
                     raise TikTokAuthError(full_msg)
                 raise TikTokAPIError(full_msg)
@@ -159,7 +159,9 @@ class TikTokService:
             error_info = error_data.get("error", {})
             error_msg = error_info.get("message", str(e))
             error_code = error_info.get("code", "")
-            logger.error(f"TikTok API error ({e.response.status_code}): {error_msg}")
+            logger.error(
+                f"TikTok API error ({e.response.status_code}) on {endpoint}: {error_msg}"
+            )
             if e.response.status_code == 401 or error_code in _TIKTOK_AUTH_ERROR_CODES:
                 raise TikTokAuthError(
                     f"TikTok API error: {error_msg}",
@@ -208,9 +210,15 @@ class TikTokService:
         Returns:
             Creator info with privacy_level_options, max_video_post_duration_sec, etc.
         """
+        # TikTok requires a JSON body (even if empty) for this endpoint.
+        # Sending a POST with Content-Type: application/json but no body causes
+        # TikTok's server to not register the creator_info call, which then
+        # results in a 403 "integration guidelines" error on the subsequent
+        # video/init or content/init request.
         result = await self._make_request(
             "POST",
             "post/publish/creator_info/query/",
+            json_data={},
         )
         return result.get("data", {})
 
