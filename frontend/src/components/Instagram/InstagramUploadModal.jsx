@@ -1,4 +1,4 @@
-import { CheckCircle, Film, Image, Images, Loader, Plus, Upload, Video, X } from 'lucide-react'
+import { CheckCircle, Film, Image, LayoutGrid, Loader, Plus, Upload, Video, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { instagramService } from '../../services/instagramService'
@@ -6,7 +6,7 @@ import { mediaService } from '../../services/mediaService'
 
 const TABS = [
   { id: 'image', label: 'Single Image', icon: Image, accept: 'image/*' },
-  { id: 'carousel', label: 'Carousel', icon: Images, accept: 'image/*' },
+  { id: 'carousel', label: 'Carousel', icon: LayoutGrid, accept: 'image/*' },
   { id: 'video', label: 'Video', icon: Video, accept: 'video/*' },
   { id: 'reel', label: 'Reel', icon: Film, accept: 'video/*' },
 ]
