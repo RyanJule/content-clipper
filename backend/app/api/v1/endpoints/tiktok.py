@@ -118,6 +118,50 @@ async def _get_tiktok_service(
     return create_tiktok_service(access_token)
 
 
+async def _validate_with_creator_info(
+    tt: TikTokService,
+    privacy_level: str,
+    disable_duet: bool,
+    disable_comment: bool,
+    disable_stitch: bool,
+) -> tuple[str, bool, bool, bool]:
+    """Call TikTok's creator_info/query/ and enforce posting constraints.
+
+    TikTok requires this call before every post init (it is their mechanism for
+    verifying that the integration follows Content Sharing Guidelines).  Skipping
+    it causes a 403 "Please review our integration guidelines" on the subsequent
+    video/init or content/init call.
+
+    Validates the requested privacy_level against the allowed options and enforces
+    any creator-level interaction locks (duet_disabled, comment_disabled,
+    stitch_disabled) returned by TikTok.
+
+    Returns the (potentially corrected) tuple of posting constraints.
+    """
+    creator_info = await tt.query_creator_info()
+
+    # Validate privacy level against creator-allowed options
+    allowed_privacy = creator_info.get("privacy_level_options", [])
+    if allowed_privacy and privacy_level not in allowed_privacy:
+        # Fall back to the first allowed option rather than failing with a
+        # confusing error; the endpoint still surface the issue via logging.
+        logger.warning(
+            f"Requested privacy_level '{privacy_level}' is not in creator's allowed "
+            f"options {allowed_privacy}. Falling back to '{allowed_privacy[0]}'."
+        )
+        privacy_level = allowed_privacy[0]
+
+    # Enforce creator-level interaction locks
+    if creator_info.get("duet_disabled"):
+        disable_duet = True
+    if creator_info.get("comment_disabled"):
+        disable_comment = True
+    if creator_info.get("stitch_disabled"):
+        disable_stitch = True
+
+    return privacy_level, disable_duet, disable_comment, disable_stitch
+
+
 # ==================== Account/Creator Info ====================
 
 @router.get("/account")
@@ -189,13 +233,23 @@ async def publish_video_by_url(
     """
     tt = await _get_tiktok_service(current_user, db)
     try:
+        # TikTok requires creator_info/query/ before every post init.
+        privacy_level, disable_duet, disable_comment, disable_stitch = (
+            await _validate_with_creator_info(
+                tt,
+                request.privacy_level,
+                request.disable_duet,
+                request.disable_comment,
+                request.disable_stitch,
+            )
+        )
         result = await tt.publish_video_by_url(
             video_url=request.video_url,
             title=request.title,
-            privacy_level=request.privacy_level,
-            disable_duet=request.disable_duet,
-            disable_comment=request.disable_comment,
-            disable_stitch=request.disable_stitch,
+            privacy_level=privacy_level,
+            disable_duet=disable_duet,
+            disable_comment=disable_comment,
+            disable_stitch=disable_stitch,
             video_cover_timestamp_ms=request.video_cover_timestamp_ms,
         )
         return {
@@ -244,6 +298,15 @@ async def upload_video(
     """
     tt = await _get_tiktok_service(current_user, db)
     try:
+        # TikTok requires creator_info/query/ to be called before every post
+        # init so it can verify Content Sharing Guidelines compliance.  Skipping
+        # it returns 403 "Please review our integration guidelines".
+        privacy_level, disable_duet, disable_comment, disable_stitch = (
+            await _validate_with_creator_info(
+                tt, privacy_level, disable_duet, disable_comment, disable_stitch
+            )
+        )
+
         common_kwargs = dict(
             title=title,
             privacy_level=privacy_level,
@@ -320,11 +383,22 @@ async def publish_photo_post(
     """
     tt = await _get_tiktok_service(current_user, db)
     try:
+        # TikTok requires creator_info/query/ before every post init.
+        # Photo posts only use privacy_level and disable_comment from creator info.
+        privacy_level, _, disable_comment, _ = (
+            await _validate_with_creator_info(
+                tt,
+                request.privacy_level,
+                False,
+                request.disable_comment,
+                False,
+            )
+        )
         result = await tt.publish_photo_post(
             photo_urls=request.photo_urls,
             title=request.title,
-            privacy_level=request.privacy_level,
-            disable_comment=request.disable_comment,
+            privacy_level=privacy_level,
+            disable_comment=disable_comment,
             auto_add_music=request.auto_add_music,
         )
         return {
