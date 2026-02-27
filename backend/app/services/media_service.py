@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 import os
 import uuid
 from datetime import datetime
@@ -98,8 +99,17 @@ async def upload_media(
             os.remove(file_path)
         raise
 
-    # Upload to MinIO for durable storage and presigned URL serving
-    content_type = file.content_type or "application/octet-stream"
+    # Upload to MinIO for durable storage and presigned URL serving.
+    # Normalise content-type: clients (and some multipart parsers) sometimes
+    # send "application/octet-stream" or nothing at all for image files.  Fall
+    # back to mimetypes so MinIO stores—and serves—the correct Content-Type
+    # header, which external services like the Instagram Graph API rely on.
+    content_type = file.content_type
+    if not content_type or content_type == "application/octet-stream":
+        guessed, _ = mimetypes.guess_type(file.filename or "")
+        if guessed:
+            content_type = guessed
+    content_type = content_type or "application/octet-stream"
     object_key = _media_object_key(unique_filename)
     uploaded = minio_client.upload_file(
         str(file_path), object_key, content_type=content_type

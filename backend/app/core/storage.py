@@ -1,5 +1,7 @@
+import io
 import logging
 from datetime import timedelta
+from urllib.parse import urlparse, urlunparse
 
 from minio import Minio
 from minio.error import S3Error
@@ -41,6 +43,21 @@ class MinIOClient:
             logger.error(f"Error uploading file: {e}")
             return False
 
+    def upload_data(self, data: bytes, object_name: str, content_type: str = "application/octet-stream") -> bool:
+        """Upload raw bytes to MinIO without writing a temporary file."""
+        try:
+            self.client.put_object(
+                settings.MINIO_BUCKET,
+                object_name,
+                io.BytesIO(data),
+                length=len(data),
+                content_type=content_type,
+            )
+            return True
+        except S3Error as e:
+            logger.error(f"Error uploading data to {object_name}: {e}")
+            return False
+
     def download_file(self, object_name: str, file_path: str):
         """Download a file from MinIO"""
         try:
@@ -76,6 +93,12 @@ class MinIOClient:
 
         Returns:
             The presigned URL string, or None on error.
+
+        If ``MINIO_PUBLIC_URL`` is configured, the internal MinIO hostname is
+        replaced with the public base URL so that external services (e.g. the
+        Instagram Graph API) can actually reach the file.  The HMAC signature
+        in the presigned URL is computed over the path and query string only,
+        not the hostname, so rewriting the host does not invalidate it.
         """
         try:
             url = self.client.presigned_get_object(
@@ -83,10 +106,37 @@ class MinIOClient:
                 object_name,
                 expires=timedelta(seconds=expires),
             )
+            if settings.MINIO_PUBLIC_URL:
+                url = self._rewrite_to_public_url(url)
             return url
         except S3Error as e:
             logger.error(f"Error getting presigned URL for {object_name}: {e}")
             return None
+
+    @staticmethod
+    def _rewrite_to_public_url(internal_url: str) -> str:
+        """Replace the internal MinIO scheme+host with the configured public URL.
+
+        The presigned HMAC signature covers the path and query string, not the
+        host header, so this rewrite is safe and does not break the signature.
+
+        Example:
+            internal:  http://minio:9000/clipper-media/media/uuid.png?X-Amz-...
+            public:    https://machine-systems.org/minio/clipper-media/media/uuid.png?X-Amz-...
+        """
+        public = settings.MINIO_PUBLIC_URL.rstrip("/")
+        parsed_internal = urlparse(internal_url)
+        parsed_public = urlparse(public)
+
+        rewritten = urlunparse((
+            parsed_public.scheme,
+            parsed_public.netloc,
+            parsed_public.path.rstrip("/") + parsed_internal.path,
+            parsed_internal.params,
+            parsed_internal.query,
+            parsed_internal.fragment,
+        ))
+        return rewritten
 
 
 # Singleton instance
