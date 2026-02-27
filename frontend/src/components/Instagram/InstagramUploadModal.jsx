@@ -5,8 +5,8 @@ import { instagramService } from '../../services/instagramService'
 import { mediaService } from '../../services/mediaService'
 
 const TABS = [
-  { id: 'image', label: 'Single Image', icon: Image, accept: 'image/*' },
-  { id: 'carousel', label: 'Carousel', icon: LayoutGrid, accept: 'image/*' },
+  { id: 'image', label: 'Single Image', icon: Image, accept: 'image/jpeg,.jpg,.jpeg' },
+  { id: 'carousel', label: 'Carousel', icon: LayoutGrid, accept: 'image/jpeg,.jpg,.jpeg' },
   { id: 'video', label: 'Video', icon: Video, accept: 'video/*' },
   { id: 'reel', label: 'Reel', icon: Film, accept: 'video/*' },
 ]
@@ -110,9 +110,16 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
     setUploadProgress(0)
   }
 
+  const isJpeg = f => f.type === 'image/jpeg' || /\.(jpg|jpeg)$/i.test(f.name)
+
   const handleSingleFileSelect = e => {
     const selected = e.target.files?.[0]
     if (!selected) return
+    if (activeTab === 'image' && !isJpeg(selected)) {
+      toast.error('Instagram only accepts JPEG images. Please convert your file to .jpg/.jpeg first.')
+      e.target.value = ''
+      return
+    }
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     const url = selected.type.startsWith('image/') ? URL.createObjectURL(selected) : null
     setFile(selected)
@@ -122,6 +129,12 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
   const handleCarouselAdd = e => {
     const newFiles = Array.from(e.target.files || [])
     if (!newFiles.length) return
+    const nonJpeg = newFiles.filter(f => !isJpeg(f))
+    if (nonJpeg.length > 0) {
+      toast.error('Instagram only accepts JPEG images. Please convert all files to .jpg/.jpeg first.')
+      e.target.value = ''
+      return
+    }
     const remaining = MAX_CAROUSEL_ITEMS - carouselItems.length
     if (remaining <= 0) {
       toast.error(`Carousel supports up to ${MAX_CAROUSEL_ITEMS} images`)
@@ -349,10 +362,10 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
 
               {carouselItems.length === 0 ? (
                 <FileDropZone
-                  accept="image/*"
+                  accept="image/jpeg,.jpg,.jpeg"
                   onSelect={handleCarouselAdd}
                   label="Click to select images (2–10)"
-                  hint="JPEG, PNG, WebP supported"
+                  hint="JPEG only (.jpg / .jpeg) — Instagram requirement"
                 />
               ) : (
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
@@ -416,7 +429,7 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
                   label={`Click to select ${activeTab === 'image' ? 'an image' : 'a video'}`}
                   hint={
                     activeTab === 'image'
-                      ? 'JPEG, PNG, WebP supported'
+                      ? 'JPEG only (.jpg / .jpeg) — Instagram requirement'
                       : activeTab === 'reel'
                         ? 'MP4, MOV — vertical format recommended'
                         : 'MP4, MOV supported'

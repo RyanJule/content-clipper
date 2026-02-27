@@ -403,14 +403,29 @@ def _get_instagram_image_url(
 
     if is_png:
         try:
-            with Image.open(item.file_path) as img:
-                # Drop alpha channel — JPEG does not support transparency and
-                # Instagram would reject a PNG with alpha even if it accepted
-                # the format.
-                rgb_img = img.convert("RGB")
-                buf = io.BytesIO()
-                rgb_img.save(buf, format="JPEG", quality=95)
-                jpeg_bytes = buf.getvalue()
+            # Prefer the local copy (fast); fall back to downloading from MinIO
+            # if the file has been removed from the container filesystem (e.g.
+            # after a restart or when the uploads dir is not a persistent volume).
+            try:
+                with Image.open(item.file_path) as img:
+                    rgb_img = img.convert("RGB")
+                    buf = io.BytesIO()
+                    rgb_img.save(buf, format="JPEG", quality=95)
+                    jpeg_bytes = buf.getvalue()
+            except (FileNotFoundError, OSError):
+                logger.info(
+                    "Local file missing for media %d — downloading from MinIO for PNG→JPEG conversion",
+                    media_id,
+                )
+                object_key = media_service._media_object_key(item.filename)
+                raw = minio_client.get_object_bytes(object_key)
+                if raw is None:
+                    raise RuntimeError("Could not retrieve PNG from object storage")
+                with Image.open(io.BytesIO(raw)) as img:
+                    rgb_img = img.convert("RGB")
+                    buf = io.BytesIO()
+                    rgb_img.save(buf, format="JPEG", quality=95)
+                    jpeg_bytes = buf.getvalue()
 
             temp_key = f"temp/instagram_{uuid_mod.uuid4()}.jpg"
             if minio_client.upload_data(jpeg_bytes, temp_key, content_type="image/jpeg"):
