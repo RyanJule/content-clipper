@@ -17,7 +17,6 @@ import uuid as uuid_mod
 from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from PIL import Image
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -403,6 +402,7 @@ def _get_instagram_image_url(
 
     if is_png:
         try:
+            from PIL import Image  # lazy import — Pillow may not be installed yet
             with Image.open(item.file_path) as img:
                 # Drop alpha channel — JPEG does not support transparency and
                 # Instagram would reject a PNG with alpha even if it accepted
