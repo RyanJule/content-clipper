@@ -417,10 +417,9 @@ def _get_instagram_image_url(
 ) -> Tuple[str, Optional[str]]:
     """Return ``(presigned_url, temp_object_key)`` for an image to post to Instagram.
 
-    PNG files are converted to JPEG on the fly because Instagram's Graph API
-    officially supports JPEG and some PNG variants (e.g. images with an alpha
-    channel) are silently rejected with a misleading "Only photo or video can
-    be accepted as media type" error.
+    Instagram's Graph API only supports JPEG images.  Any non-JPEG image
+    (PNG, GIF, WebP, BMP, etc.) is converted to JPEG on the fly so that
+    Instagram does not reject it with "The image format is not supported."
 
     If a temporary JPEG was created in MinIO, ``temp_object_key`` is set to its
     object key so the caller can delete it from MinIO after publishing.  The
@@ -436,9 +435,12 @@ def _get_instagram_image_url(
             detail="Not authorized to access this media",
         )
 
-    is_png = (item.mime_type or "").lower() == "image/png" or item.filename.lower().endswith(".png")
+    mime = (item.mime_type or "").lower()
+    fname = item.filename.lower()
+    is_jpeg = mime == "image/jpeg" or fname.endswith(".jpg") or fname.endswith(".jpeg")
 
-    if is_png:
+    # Convert any non-JPEG image to JPEG; Instagram only supports JPEG.
+    if not is_jpeg:
         try:
             # Prefer the local copy (fast); fall back to downloading from MinIO
             # if the file has been removed from the container filesystem (e.g.
@@ -451,13 +453,13 @@ def _get_instagram_image_url(
                     jpeg_bytes = buf.getvalue()
             except (FileNotFoundError, OSError):
                 logger.info(
-                    "Local file missing for media %d — downloading from MinIO for PNG→JPEG conversion",
+                    "Local file missing for media %d — downloading from MinIO for non-JPEG→JPEG conversion",
                     media_id,
                 )
                 object_key = media_service._media_object_key(item.filename)
                 raw = minio_client.get_object_bytes(object_key)
                 if raw is None:
-                    raise RuntimeError("Could not retrieve PNG from object storage")
+                    raise RuntimeError("Could not retrieve image from object storage")
                 with Image.open(io.BytesIO(raw)) as img:
                     rgb_img = img.convert("RGB")
                     buf = io.BytesIO()
@@ -470,8 +472,9 @@ def _get_instagram_image_url(
                 if url:
                     _assert_url_is_public(url)
                     logger.info(
-                        "Converted media %d PNG→JPEG for Instagram (temp key: %s, url: %s)",
+                        "Converted media %d (%s)→JPEG for Instagram (temp key: %s, url: %s)",
                         media_id,
+                        mime or fname.rsplit(".", 1)[-1],
                         temp_key,
                         url,
                     )
@@ -480,12 +483,12 @@ def _get_instagram_image_url(
                 minio_client.delete_file(temp_key)
         except Exception as exc:
             logger.warning(
-                "PNG→JPEG conversion failed for media %d: %s — falling back to original",
+                "Non-JPEG→JPEG conversion failed for media %d: %s — falling back to original",
                 media_id,
                 exc,
             )
 
-    # Original file (non-PNG, or conversion failed)
+    # Original file (already JPEG, or conversion failed)
     url = media_service.get_media_url(item, expires=7200)
     if not url:
         raise HTTPException(
