@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     MINIO_ROOT_PASSWORD: str
     MINIO_BUCKET: str = "clipper-media"
     MINIO_SECURE: bool = False
+    # Public base URL for MinIO (e.g. "https://machine-systems.org/minio" or
+    # "https://storage.machine-systems.org"). When set, the internal hostname in
+    # presigned URLs is replaced with this value so that external services such
+    # as the Instagram Graph API can actually reach the media files.
+    MINIO_PUBLIC_URL: str = ""
 
     # OpenAI
     OPENAI_API_KEY: str = ""

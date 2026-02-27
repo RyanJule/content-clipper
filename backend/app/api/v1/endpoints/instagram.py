@@ -11,16 +11,20 @@ Provides frontend-facing endpoints for Instagram Graph API features:
 """
 
 import asyncio
+import io
 import logging
-from typing import List, Optional
+import uuid as uuid_mod
+from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from PIL import Image
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_active_user
 from app.core.database import get_db
 from app.core.crypto import decrypt_token
+from app.core.storage import minio_client
 from app.models.account import Account
 from app.models.user import User
 from app.services import media_service
@@ -371,6 +375,72 @@ def _get_media_url_for_user(media_id: int, user_id: int, db: Session) -> str:
     return url
 
 
+def _get_instagram_image_url(
+    media_id: int, user_id: int, db: Session
+) -> Tuple[str, Optional[str]]:
+    """Return ``(presigned_url, temp_object_key)`` for an image to post to Instagram.
+
+    PNG files are converted to JPEG on the fly because Instagram's Graph API
+    officially supports JPEG and some PNG variants (e.g. images with an alpha
+    channel) are silently rejected with a misleading "Only photo or video can
+    be accepted as media type" error.
+
+    If a temporary JPEG was created in MinIO, ``temp_object_key`` is set to its
+    object key so the caller can delete it from MinIO after publishing.  The
+    caller is responsible for always deleting the temp object in a ``finally``
+    block.
+    """
+    item = media_service.get_media(db, media_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media not found")
+    if item.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this media",
+        )
+
+    is_png = (item.mime_type or "").lower() == "image/png" or item.filename.lower().endswith(".png")
+
+    if is_png:
+        try:
+            with Image.open(item.file_path) as img:
+                # Drop alpha channel — JPEG does not support transparency and
+                # Instagram would reject a PNG with alpha even if it accepted
+                # the format.
+                rgb_img = img.convert("RGB")
+                buf = io.BytesIO()
+                rgb_img.save(buf, format="JPEG", quality=95)
+                jpeg_bytes = buf.getvalue()
+
+            temp_key = f"temp/instagram_{uuid_mod.uuid4()}.jpg"
+            if minio_client.upload_data(jpeg_bytes, temp_key, content_type="image/jpeg"):
+                url = minio_client.get_presigned_url(temp_key, expires=7200)
+                if url:
+                    logger.info(
+                        "Converted media %d PNG→JPEG for Instagram (temp key: %s)",
+                        media_id,
+                        temp_key,
+                    )
+                    return url, temp_key
+                # Could not get a URL — clean up and fall through to original
+                minio_client.delete_file(temp_key)
+        except Exception as exc:
+            logger.warning(
+                "PNG→JPEG conversion failed for media %d: %s — falling back to original",
+                media_id,
+                exc,
+            )
+
+    # Original file (non-PNG, or conversion failed)
+    url = media_service.get_media_url(item, expires=7200)
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate a public URL for the media",
+        )
+    return url, None
+
+
 async def _wait_for_video_container(ig_api: InstagramGraphAPI, container_id: str) -> None:
     """Poll the Instagram container status until FINISHED or ERROR.
 
@@ -407,8 +477,9 @@ async def publish_image(
 ):
     """Publish a single image post directly to Instagram."""
     ig_api, ig_account_id = await _get_instagram_service(current_user, db)
+    temp_key: Optional[str] = None
     try:
-        image_url = _get_media_url_for_user(request.media_id, current_user.id, db)
+        image_url, temp_key = _get_instagram_image_url(request.media_id, current_user.id, db)
         container_id = await ig_api.create_image_container(
             ig_account_id, image_url, caption=request.caption
         )
@@ -419,6 +490,8 @@ async def publish_image(
     except InstagramGraphAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     finally:
+        if temp_key:
+            minio_client.delete_file(temp_key)
         await ig_api.close()
 
 
@@ -440,11 +513,14 @@ async def publish_carousel(
             detail="Carousel supports a maximum of 10 images",
         )
     ig_api, ig_account_id = await _get_instagram_service(current_user, db)
+    temp_keys: List[str] = []
     try:
         # Create child containers for each image
         child_ids: List[str] = []
         for mid in request.media_ids:
-            image_url = _get_media_url_for_user(mid, current_user.id, db)
+            image_url, temp_key = _get_instagram_image_url(mid, current_user.id, db)
+            if temp_key:
+                temp_keys.append(temp_key)
             child_id = await ig_api.create_image_container(
                 ig_account_id, image_url, is_carousel_item=True
             )
@@ -461,6 +537,8 @@ async def publish_carousel(
     except InstagramGraphAPIError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     finally:
+        for temp_key in temp_keys:
+            minio_client.delete_file(temp_key)
         await ig_api.close()
 
 
