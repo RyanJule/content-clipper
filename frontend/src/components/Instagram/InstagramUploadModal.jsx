@@ -353,7 +353,7 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
                 <input
                   ref={carouselInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,.jpg,.jpeg"
                   multiple
                   className="hidden"
                   onChange={handleCarouselAdd}

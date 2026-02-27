@@ -15,6 +15,7 @@ import io
 import logging
 import uuid as uuid_mod
 from typing import List, Optional, Tuple
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from PIL import Image
@@ -350,6 +351,40 @@ async def send_message(
 
 # ==================== Publishing Helpers ====================
 
+_INTERNAL_HOSTNAMES = frozenset({
+    "minio",
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+    "::1",
+})
+
+
+def _assert_url_is_public(url: str) -> None:
+    """Raise HTTP 503 if *url* resolves to an internal/Docker hostname.
+
+    When ``MINIO_PUBLIC_URL`` is not configured the MinIO client generates
+    presigned URLs with the internal Docker service name (e.g. ``minio:9000``).
+    The Instagram Graph API cannot reach that host from the public internet,
+    which causes the misleading error "Only photo or video can be accepted as
+    media type".  Fail fast with a clear diagnostic message instead.
+    """
+    try:
+        hostname = urlparse(url).hostname or ""
+    except Exception:
+        return  # unparseable — let Instagram surface the real error
+    if hostname in _INTERNAL_HOSTNAMES or hostname.endswith(".local"):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Media storage is not publicly accessible. "
+                "Set MINIO_PUBLIC_URL to the public-facing MinIO URL "
+                "(e.g. 'https://machine-systems.org/minio') so Instagram "
+                "can download the media file."
+            ),
+        )
+
+
 def _get_media_url_for_user(media_id: int, user_id: int, db: Session) -> str:
     """Retrieve a presigned URL for a media item owned by the given user.
 
@@ -372,6 +407,8 @@ def _get_media_url_for_user(media_id: int, user_id: int, db: Session) -> str:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate a public URL for the media",
         )
+    _assert_url_is_public(url)
+    logger.info("Media URL for Instagram (media_id=%d): %s", media_id, url)
     return url
 
 
@@ -431,10 +468,12 @@ def _get_instagram_image_url(
             if minio_client.upload_data(jpeg_bytes, temp_key, content_type="image/jpeg"):
                 url = minio_client.get_presigned_url(temp_key, expires=7200)
                 if url:
+                    _assert_url_is_public(url)
                     logger.info(
-                        "Converted media %d PNG→JPEG for Instagram (temp key: %s)",
+                        "Converted media %d PNG→JPEG for Instagram (temp key: %s, url: %s)",
                         media_id,
                         temp_key,
+                        url,
                     )
                     return url, temp_key
                 # Could not get a URL — clean up and fall through to original
@@ -453,6 +492,8 @@ def _get_instagram_image_url(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate a public URL for the media",
         )
+    _assert_url_is_public(url)
+    logger.info("Image URL for Instagram (media_id=%d): %s", media_id, url)
     return url, None
 
 
