@@ -65,6 +65,13 @@ class InstagramGraphAPI:
             params = {}
         params["access_token"] = self.access_token
 
+        logger.debug(
+            "Instagram Graph API %s /%s payload=%s",
+            method,
+            endpoint,
+            {k: v for k, v in (data or {}).items()},
+        )
+
         try:
             if method == "GET":
                 response = await self.client.get(url, params=params)
@@ -159,6 +166,13 @@ class InstagramGraphAPI:
         Returns:
             Container ID for publishing
         """
+        logger.info(
+            "Creating Instagram image container: account=%s is_carousel_item=%s image_url=%s",
+            ig_account_id,
+            is_carousel_item,
+            image_url,
+        )
+
         data = {
             "image_url": image_url,
         }
@@ -173,7 +187,13 @@ class InstagramGraphAPI:
             data["user_tags"] = user_tags
 
         response = await self._make_request("POST", f"{ig_account_id}/media", data=data)
-        return response.get("id")
+        container_id = response.get("id")
+        logger.info(
+            "Instagram image container created: account=%s container_id=%s",
+            ig_account_id,
+            container_id,
+        )
+        return container_id
 
     async def create_video_container(
         self,
@@ -201,6 +221,13 @@ class InstagramGraphAPI:
         Returns:
             Container ID for publishing
         """
+        logger.info(
+            "Creating Instagram video container: account=%s media_type=%s video_url=%s",
+            ig_account_id,
+            media_type,
+            video_url,
+        )
+
         data = {
             "media_type": media_type,
             "video_url": video_url,
@@ -214,7 +241,14 @@ class InstagramGraphAPI:
             data["thumb_offset"] = thumb_offset
 
         response = await self._make_request("POST", f"{ig_account_id}/media", data=data)
-        return response.get("id")
+        container_id = response.get("id")
+        logger.info(
+            "Instagram video container created: account=%s media_type=%s container_id=%s",
+            ig_account_id,
+            media_type,
+            container_id,
+        )
+        return container_id
 
     async def create_carousel_container(
         self,
@@ -238,6 +272,12 @@ class InstagramGraphAPI:
         Returns:
             Container ID for publishing
         """
+        logger.info(
+            "Creating Instagram carousel container: account=%s children=%s",
+            ig_account_id,
+            children,
+        )
+
         data = {
             "media_type": "CAROUSEL",
             "children": ",".join(children),
@@ -249,7 +289,13 @@ class InstagramGraphAPI:
             data["location_id"] = location_id
 
         response = await self._make_request("POST", f"{ig_account_id}/media", data=data)
-        return response.get("id")
+        container_id = response.get("id")
+        logger.info(
+            "Instagram carousel container created: account=%s container_id=%s",
+            ig_account_id,
+            container_id,
+        )
+        return container_id
 
     async def create_story_container(
         self,
@@ -271,6 +317,13 @@ class InstagramGraphAPI:
         Returns:
             Container ID for publishing
         """
+        logger.info(
+            "Creating Instagram story container: account=%s media_type=%s media_url=%s",
+            ig_account_id,
+            media_type,
+            media_url,
+        )
+
         data = {
             "media_type": "STORIES",
         }
@@ -281,7 +334,13 @@ class InstagramGraphAPI:
             data["video_url"] = media_url
 
         response = await self._make_request("POST", f"{ig_account_id}/media", data=data)
-        return response.get("id")
+        container_id = response.get("id")
+        logger.info(
+            "Instagram story container created: account=%s container_id=%s",
+            ig_account_id,
+            container_id,
+        )
+        return container_id
 
     async def publish_container(self, ig_account_id: str, creation_id: str) -> str:
         """
