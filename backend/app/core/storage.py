@@ -67,6 +67,20 @@ class MinIOClient:
             logger.error(f"Error downloading file: {e}")
             return False
 
+    def get_object_bytes(self, object_name: str) -> bytes | None:
+        """Return the raw bytes of an object from MinIO, or None on error."""
+        response = None
+        try:
+            response = self.client.get_object(settings.MINIO_BUCKET, object_name)
+            return response.read()
+        except S3Error as e:
+            logger.error(f"Error reading object {object_name}: {e}")
+            return None
+        finally:
+            if response:
+                response.close()
+                response.release_conn()
+
     def delete_file(self, object_name: str):
         """Delete a file from MinIO"""
         try:
