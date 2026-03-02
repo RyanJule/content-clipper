@@ -439,6 +439,30 @@ def _get_instagram_image_url(
     fname = item.filename.lower()
     is_jpeg = mime == "image/jpeg" or fname.endswith(".jpg") or fname.endswith(".jpeg")
 
+    # Verify the actual on-disk format using PIL so that misnamed files
+    # (e.g. a PNG saved with a .jpg extension) are correctly converted.
+    # PIL reads only the file header to determine format, so this is fast.
+    if is_jpeg:
+        try:
+            with Image.open(item.file_path) as img:
+                if img.format != "JPEG":
+                    logger.info(
+                        "Media %d has extension/mime suggesting JPEG but PIL detected %s — will convert",
+                        media_id,
+                        img.format,
+                    )
+                    is_jpeg = False
+        except (FileNotFoundError, OSError):
+            # Local file is gone (e.g. after a container restart); the
+            # conversion path below already has a MinIO fallback for this case.
+            pass
+        except Exception as exc:
+            logger.warning(
+                "PIL format check failed for media %d: %s — trusting extension/mime",
+                media_id,
+                exc,
+            )
+
     # Convert any non-JPEG image to JPEG; Instagram only supports JPEG.
     if not is_jpeg:
         try:
