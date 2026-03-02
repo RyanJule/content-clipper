@@ -110,9 +110,12 @@ class MinIOClient:
 
         If ``MINIO_PUBLIC_URL`` is configured, the internal MinIO hostname is
         replaced with the public base URL so that external services (e.g. the
-        Instagram Graph API) can actually reach the file.  The HMAC signature
-        in the presigned URL is computed over the path and query string only,
-        not the hostname, so rewriting the host does not invalidate it.
+        Instagram Graph API) can actually reach the file.  AWS S3 Signature V4
+        presigned URLs include the Host header in the HMAC signature
+        (X-Amz-SignedHeaders=host).  This rewrite is safe because the Nginx
+        reverse proxy is configured to forward ``Host: minio:9000`` (the
+        internal endpoint) to MinIO, so MinIO receives the same Host value that
+        was used at signing time and the signature remains valid.
         """
         try:
             url = self.client.presigned_get_object(
@@ -131,8 +134,10 @@ class MinIOClient:
     def _rewrite_to_public_url(internal_url: str) -> str:
         """Replace the internal MinIO scheme+host with the configured public URL.
 
-        The presigned HMAC signature covers the path and query string, not the
-        host header, so this rewrite is safe and does not break the signature.
+        The Nginx reverse proxy MUST forward ``Host: minio:9000`` (the internal
+        endpoint) to MinIO so that the AWS Signature V4 Host-header HMAC
+        remains valid after this host rewrite.  See the /minio/ location block
+        in docker/nginx/nginx.conf.
 
         Example:
             internal:  http://minio:9000/clipper-media/media/uuid.png?X-Amz-...
