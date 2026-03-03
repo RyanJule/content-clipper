@@ -40,7 +40,7 @@ class InstagramGraphAPI:
     - business_management: Manage business assets
     """
 
-    BASE_URL = "https://graph.facebook.com/v21.0"
+    BASE_URL = "https://graph.facebook.com/v24.0"
 
     def __init__(self, access_token: str):
         self.access_token = access_token

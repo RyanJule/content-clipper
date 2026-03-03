@@ -124,7 +124,7 @@ class TestCreateStoryContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "story_container_img"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig_id/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig_id/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -144,7 +144,7 @@ class TestCreateStoryContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "story_container_vid"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig_id/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig_id/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -163,7 +163,7 @@ class TestCreateStoryContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "story_c"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -184,7 +184,7 @@ class TestCreateStoryContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "story_img_url"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -206,7 +206,7 @@ class TestCreateStoryContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "story_vid_url"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -228,7 +228,7 @@ class TestCreateStoryContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "story_def"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -248,7 +248,7 @@ class TestCreateStoryContainer:
         error_response = httpx.Response(
             400,
             json={"error": {"message": "Story image too small", "type": "OAuthException", "code": 100}},
-            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(side_effect=httpx.HTTPStatusError(
