@@ -41,6 +41,13 @@ class JsonBodyLoggingMiddleware(BaseHTTPMiddleware):
                     request.url.path,
                     json.dumps(body),
                 )
+                # Restore the body stream so downstream handlers can read it.
+                # request.body() drains the ASGI receive channel; without this,
+                # endpoint handlers hang waiting for body bytes that never arrive.
+                async def receive():
+                    return {"type": "http.request", "body": body_bytes, "more_body": False}
+
+                request = Request(request.scope, receive)
             except Exception:
                 pass
         return await call_next(request)
