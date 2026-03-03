@@ -123,7 +123,7 @@ class TestCreateVideoContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "video_container_123"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig_id/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig_id/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -145,7 +145,7 @@ class TestCreateVideoContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "reel_c"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -165,7 +165,7 @@ class TestCreateVideoContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "vid_c"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -186,7 +186,7 @@ class TestCreateVideoContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "vid_cap"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -207,7 +207,7 @@ class TestCreateVideoContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "vid_nc"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -227,7 +227,7 @@ class TestCreateVideoContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "vid_loc"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -248,7 +248,7 @@ class TestCreateVideoContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "vid_thumb"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -269,7 +269,7 @@ class TestCreateVideoContainer:
         error_response = httpx.Response(
             400,
             json={"error": {"message": "Invalid video URL", "type": "OAuthException", "code": 100}},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v24.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(side_effect=httpx.HTTPStatusError(
@@ -292,7 +292,7 @@ class TestCheckContainerStatus:
         mock_response = httpx.Response(
             200,
             json={"id": "container_1", "status_code": "FINISHED", "status": "ready"},
-            request=httpx.Request("GET", "https://graph.facebook.com/v18.0/container_1"),
+            request=httpx.Request("GET", "https://graph.facebook.com/v24.0/container_1"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.get = AsyncMock(return_value=mock_response)
@@ -308,7 +308,7 @@ class TestCheckContainerStatus:
         mock_response = httpx.Response(
             200,
             json={"id": "container_2", "status_code": "IN_PROGRESS", "status": "processing"},
-            request=httpx.Request("GET", "https://graph.facebook.com/v18.0/container_2"),
+            request=httpx.Request("GET", "https://graph.facebook.com/v24.0/container_2"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.get = AsyncMock(return_value=mock_response)
@@ -323,7 +323,7 @@ class TestCheckContainerStatus:
         mock_response = httpx.Response(
             200,
             json={"id": "container_3", "status_code": "ERROR", "status": "Video format not supported"},
-            request=httpx.Request("GET", "https://graph.facebook.com/v18.0/container_3"),
+            request=httpx.Request("GET", "https://graph.facebook.com/v24.0/container_3"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.get = AsyncMock(return_value=mock_response)
@@ -339,7 +339,7 @@ class TestCheckContainerStatus:
         mock_response = httpx.Response(
             200,
             json={"id": "c", "status_code": "FINISHED"},
-            request=httpx.Request("GET", "https://graph.facebook.com/v18.0/c"),
+            request=httpx.Request("GET", "https://graph.facebook.com/v24.0/c"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.get = AsyncMock(return_value=mock_response)
