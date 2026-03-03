@@ -79,7 +79,7 @@ class InstagramGraphAPI:
                 if files:
                     response = await self.client.post(url, params=params, files=files)
                 else:
-                    response = await self.client.post(url, params=params, data=data)
+                    response = await self.client.post(url, params=params, json=data)
             elif method == "DELETE":
                 response = await self.client.delete(url, params=params)
             else:
