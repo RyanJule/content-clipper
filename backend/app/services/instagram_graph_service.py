@@ -198,6 +198,7 @@ class InstagramGraphAPI:
         if user_tags:
             data["user_tags"] = user_tags
 
+        logger.info("Instagram image container request body: %s", data)
         response = await self._make_request("POST", f"{ig_account_id}/media", data=data)
         container_id = response.get("id")
         logger.info(
