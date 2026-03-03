@@ -417,9 +417,15 @@ def _get_instagram_image_url(
 ) -> Tuple[str, Optional[str]]:
     """Return ``(presigned_url, temp_object_key)`` for an image to post to Instagram.
 
-    Instagram's Graph API only supports JPEG images.  Any non-JPEG image
-    (PNG, GIF, WebP, BMP, etc.) is converted to JPEG on the fly so that
-    Instagram does not reject it with "The image format is not supported."
+    Instagram's Graph API only supports JPEG images in RGB or greyscale
+    colorspace.  We use Pillow to inspect the actual image format and
+    colorspace — not the filename or stored MIME type, which can be wrong
+    (e.g. a HEIC or WebP file uploaded with a .jpg extension, or a CMYK JPEG
+    exported from Lightroom/Photoshop) — and convert to JPEG/RGB when needed.
+
+    Instagram Graph API error 36001/2207083 ("The image format is not
+    supported") is the symptom of sending a file whose content does not match
+    what the extension implies, or a JPEG that is in CMYK colorspace.
 
     If a temporary JPEG was created in MinIO, ``temp_object_key`` is set to its
     object key so the caller can delete it from MinIO after publishing.  The
@@ -435,60 +441,62 @@ def _get_instagram_image_url(
             detail="Not authorized to access this media",
         )
 
-    mime = (item.mime_type or "").lower()
-    fname = item.filename.lower()
-    is_jpeg = mime == "image/jpeg" or fname.endswith(".jpg") or fname.endswith(".jpeg")
-
-    # Convert any non-JPEG image to JPEG; Instagram only supports JPEG.
-    if not is_jpeg:
+    try:
+        # Load raw bytes: prefer local file, fall back to MinIO.
         try:
-            # Prefer the local copy (fast); fall back to downloading from MinIO
-            # if the file has been removed from the container filesystem (e.g.
-            # after a restart or when the uploads dir is not a persistent volume).
-            try:
-                with Image.open(item.file_path) as img:
-                    rgb_img = img.convert("RGB")
-                    buf = io.BytesIO()
-                    rgb_img.save(buf, format="JPEG", quality=95)
-                    jpeg_bytes = buf.getvalue()
-            except (FileNotFoundError, OSError):
-                logger.info(
-                    "Local file missing for media %d — downloading from MinIO for non-JPEG→JPEG conversion",
-                    media_id,
-                )
-                object_key = media_service._media_object_key(item.filename)
-                raw = minio_client.get_object_bytes(object_key)
-                if raw is None:
-                    raise RuntimeError("Could not retrieve image from object storage")
-                with Image.open(io.BytesIO(raw)) as img:
-                    rgb_img = img.convert("RGB")
-                    buf = io.BytesIO()
-                    rgb_img.save(buf, format="JPEG", quality=95)
-                    jpeg_bytes = buf.getvalue()
+            with open(item.file_path, "rb") as f:
+                raw_bytes = f.read()
+        except (FileNotFoundError, OSError):
+            logger.info(
+                "Local file missing for media %d — downloading from MinIO for format inspection",
+                media_id,
+            )
+            object_key = media_service._media_object_key(item.filename)
+            raw_bytes = minio_client.get_object_bytes(object_key)
+            if raw_bytes is None:
+                raise RuntimeError("Could not retrieve image from object storage")
 
+        # Use Pillow to detect the actual format and colorspace — do not trust
+        # the filename extension or stored MIME type, which can both be wrong.
+        actual_format: Optional[str] = None
+        actual_mode: Optional[str] = None
+        jpeg_bytes: Optional[bytes] = None
+
+        with Image.open(io.BytesIO(raw_bytes)) as img:
+            actual_format = img.format  # "JPEG", "PNG", "WEBP", "HEIF", …
+            actual_mode = img.mode      # "RGB", "CMYK", "L", "RGBA", …
+            needs_conversion = actual_format != "JPEG" or actual_mode not in ("RGB", "L")
+
+            if needs_conversion:
+                rgb_img = img.convert("RGB")
+                buf = io.BytesIO()
+                rgb_img.save(buf, format="JPEG", quality=95)
+                jpeg_bytes = buf.getvalue()
+
+        if jpeg_bytes is not None:
             temp_key = f"temp/instagram_{uuid_mod.uuid4()}.jpg"
             if minio_client.upload_data(jpeg_bytes, temp_key, content_type="image/jpeg"):
                 url = minio_client.get_presigned_url(temp_key, expires=7200)
                 if url:
                     _assert_url_is_public(url)
                     logger.info(
-                        "Converted media %d (%s)→JPEG for Instagram (temp key: %s, url: %s)",
+                        "Converted media %d (format=%s mode=%s)→JPEG/RGB for Instagram (temp key: %s)",
                         media_id,
-                        mime or fname.rsplit(".", 1)[-1],
+                        actual_format,
+                        actual_mode,
                         temp_key,
-                        url,
                     )
                     return url, temp_key
                 # Could not get a URL — clean up and fall through to original
                 minio_client.delete_file(temp_key)
-        except Exception as exc:
-            logger.warning(
-                "Non-JPEG→JPEG conversion failed for media %d: %s — falling back to original",
-                media_id,
-                exc,
-            )
+    except Exception as exc:
+        logger.warning(
+            "Image format inspection/conversion failed for media %d: %s — falling back to original",
+            media_id,
+            exc,
+        )
 
-    # Original file (already JPEG, or conversion failed)
+    # Original file (already a valid Instagram-compatible JPEG, or conversion failed).
     url = media_service.get_media_url(item, expires=7200)
     if not url:
         raise HTTPException(
