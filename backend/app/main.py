@@ -1,8 +1,10 @@
+import json
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1 import api_router
 from app.core.config import settings
@@ -12,6 +14,8 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title="Content Clipper API",
     description="AI-powered video/audio clipping and social media scheduler",
@@ -20,6 +24,27 @@ app = FastAPI(
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
 )
+
+
+class JsonBodyLoggingMiddleware(BaseHTTPMiddleware):
+    """Log the JSON body of incoming requests."""
+
+    async def dispatch(self, request: Request, call_next):
+        content_type = request.headers.get("content-type", "")
+        if "application/json" in content_type:
+            try:
+                body_bytes = await request.body()
+                body = json.loads(body_bytes)
+                logger.info(
+                    "Request %s %s body: %s",
+                    request.method,
+                    request.url.path,
+                    json.dumps(body),
+                )
+            except Exception:
+                pass
+        return await call_next(request)
+
 
 # CORS Middleware
 app.add_middleware(
@@ -32,6 +57,9 @@ app.add_middleware(
 
 # GZip Middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# JSON body logging middleware
+app.add_middleware(JsonBodyLoggingMiddleware)
 
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
