@@ -40,7 +40,7 @@ class InstagramGraphAPI:
     - business_management: Manage business assets
     """
 
-    BASE_URL = "https://graph.facebook.com/v18.0"
+    BASE_URL = "https://graph.facebook.com/v21.0"
 
     def __init__(self, access_token: str):
         self.access_token = access_token
@@ -89,9 +89,21 @@ class InstagramGraphAPI:
             return response.json()
 
         except httpx.HTTPStatusError as e:
-            error_data = e.response.json() if e.response.content else {}
-            error_message = error_data.get("error", {}).get("message", str(e))
-            logger.error(f"Instagram API error: {error_message}")
+            try:
+                error_data = e.response.json() if e.response.content else {}
+            except Exception:
+                error_data = {}
+            err = error_data.get("error", {})
+            error_message = err.get("message", str(e))
+            logger.error(
+                "Instagram API error %s %s: code=%s subcode=%s type=%s message=%s",
+                method,
+                endpoint,
+                err.get("code"),
+                err.get("error_subcode"),
+                err.get("type"),
+                error_message,
+            )
             raise InstagramGraphAPIError(error_message)
         except Exception as e:
             logger.error(f"Request failed: {str(e)}")

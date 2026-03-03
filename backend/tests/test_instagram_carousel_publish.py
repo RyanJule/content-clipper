@@ -135,7 +135,7 @@ class TestCreateCarouselContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "carousel_container_123"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig_id/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig_id/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -157,7 +157,7 @@ class TestCreateCarouselContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "carousel_c"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -177,7 +177,7 @@ class TestCreateCarouselContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "carousel_c"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -197,7 +197,7 @@ class TestCreateCarouselContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "carousel_cap"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -218,7 +218,7 @@ class TestCreateCarouselContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "carousel_nc"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -238,7 +238,7 @@ class TestCreateCarouselContainer:
         mock_response = httpx.Response(
             200,
             json={"id": "carousel_loc"},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(return_value=mock_response)
@@ -259,7 +259,7 @@ class TestCreateCarouselContainer:
         error_response = httpx.Response(
             400,
             json={"error": {"message": "Invalid children IDs", "type": "OAuthException", "code": 100}},
-            request=httpx.Request("POST", "https://graph.facebook.com/v18.0/ig/media"),
+            request=httpx.Request("POST", "https://graph.facebook.com/v21.0/ig/media"),
         )
         ig_api.client = AsyncMock()
         ig_api.client.post = AsyncMock(side_effect=httpx.HTTPStatusError(
