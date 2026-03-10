@@ -5,21 +5,26 @@ import { scheduleService } from '../../services/scheduleService'
 import { useStore } from '../../store'
 
 export default function CalendarView({ compact = false, currentMonth: initialMonth }) {
-  const { selectedAccountId, calendarData, setCalendarData } = useStore()
+  const { selectedAccountId, selectedBrandId, calendarData, setCalendarData } = useStore()
   const [currentDate, setCurrentDate] = useState(initialMonth || new Date())
   const [loading, setLoading] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null)
 
   useEffect(() => {
     loadCalendarData()
-  }, [currentDate, selectedAccountId])
+  }, [currentDate, selectedAccountId, selectedBrandId])
 
   const loadCalendarData = async () => {
     setLoading(true)
     try {
       const year = currentDate.getFullYear()
       const month = currentDate.getMonth() + 1
-      const data = await scheduleService.getCalendar(year, month, selectedAccountId)
+      const data = await scheduleService.getCalendar(
+        year,
+        month,
+        selectedAccountId,
+        selectedAccountId ? null : selectedBrandId
+      )
       setCalendarData(data)
     } catch (error) {
       console.error('Failed to load calendar:', error)

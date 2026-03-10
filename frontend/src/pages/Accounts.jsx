@@ -8,9 +8,13 @@ import { accountService } from '../services/accountService'
 import { useStore } from '../store'
 
 export default function Accounts() {
-  const { accounts, setAccounts, removeAccount } = useStore()
+  const { accounts, setAccounts, removeAccount, selectedBrandId } = useStore()
   const { loading, execute } = useApi()
   const [showConnectModal, setShowConnectModal] = useState(false)
+
+  const filteredAccounts = selectedBrandId
+    ? accounts.filter(a => a.brand_id === selectedBrandId)
+    : accounts
 
   const loadAccounts = () => {
     return execute(
@@ -80,24 +84,30 @@ export default function Accounts() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
           <p className="text-gray-600 mt-4">Loading accounts...</p>
         </div>
-      ) : accounts.length === 0 ? (
+      ) : filteredAccounts.length === 0 ? (
         <div className="card p-12 text-center">
           <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No accounts connected</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            {selectedBrandId ? 'No accounts for this brand' : 'No accounts connected'}
+          </h3>
           <p className="text-gray-600 mb-6">
-            Connect your social media accounts to start scheduling content
+            {selectedBrandId
+              ? 'Connect accounts to this brand from the Brands page'
+              : 'Connect your social media accounts to start scheduling content'}
           </p>
-          <button
-            onClick={() => setShowConnectModal(true)}
-            className="btn btn-primary inline-flex items-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Connect First Account</span>
-          </button>
+          {!selectedBrandId && (
+            <button
+              onClick={() => setShowConnectModal(true)}
+              className="btn btn-primary inline-flex items-center space-x-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Connect First Account</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {accounts.map(account => (
+          {filteredAccounts.map(account => (
             <div key={account.id} className="card overflow-hidden">
               <div className="p-6">
                 <AccountCard account={account} />

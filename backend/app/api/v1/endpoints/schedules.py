@@ -54,14 +54,17 @@ async def create_schedule(
 @router.get("/", response_model=List[ContentSchedule])
 async def list_schedules(
     account_id: int = None,
+    brand_id: int = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """List all schedules"""
+    """List all schedules, optionally filtered by account or brand"""
     query = db.query(ScheduleModel).filter(ScheduleModel.user_id == current_user.id)
 
     if account_id:
         query = query.filter(ScheduleModel.account_id == account_id)
+    elif brand_id:
+        query = query.join(Account).filter(Account.brand_id == brand_id)
 
     return query.all()
 
@@ -185,10 +188,11 @@ async def get_calendar_view(
     year: int,
     month: int,
     account_id: int = None,
+    brand_id: int = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Get calendar view of scheduled posts for a month"""
+    """Get calendar view of scheduled posts for a month, optionally filtered by account or brand"""
     from calendar import monthrange
 
     # Get all days in month
@@ -205,6 +209,8 @@ async def get_calendar_view(
 
     if account_id:
         query = query.join(ScheduleModel).filter(ScheduleModel.account_id == account_id)
+    elif brand_id:
+        query = query.join(ScheduleModel).join(Account).filter(Account.brand_id == brand_id)
 
     posts = query.all()
 

@@ -17,6 +17,8 @@ export const useStore = create(set => ({
       posts: [],
       accounts: [],
       schedules: [],
+      selectedBrandId: null,
+      selectedAccountId: null,
     })
   },
 
@@ -53,6 +55,10 @@ export const useStore = create(set => ({
   // Calendar state
   calendarData: [],
   setCalendarData: data => set({ calendarData: data }),
+
+  // Selected brand filter (drives account filtering across the app)
+  selectedBrandId: null,
+  setSelectedBrandId: id => set({ selectedBrandId: id, selectedAccountId: null }),
 
   // Selected account filter
   selectedAccountId: null,

@@ -39,13 +39,15 @@ async def create_account(
 
 @router.get("/", response_model=List[Account])
 async def list_accounts(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)
+    brand_id: int = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
 ):
-    """List all connected accounts"""
-    accounts = (
-        db.query(AccountModel).filter(AccountModel.user_id == current_user.id).all()
-    )
-    return accounts
+    """List all connected accounts, optionally filtered by brand"""
+    query = db.query(AccountModel).filter(AccountModel.user_id == current_user.id)
+    if brand_id:
+        query = query.filter(AccountModel.brand_id == brand_id)
+    return query.all()
 
 
 @router.get("/{account_id}", response_model=Account)

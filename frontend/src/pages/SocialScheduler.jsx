@@ -6,8 +6,13 @@ import { useStore } from '../store'
 import { formatDateTime } from '../utils/formatters'
 
 export default function SocialScheduler() {
-  const { posts, setPosts, removePost } = useStore()
+  const { posts, setPosts, removePost, brands, selectedBrandId } = useStore()
   const { loading, execute } = useApi()
+
+  // When a brand is selected, filter posts to only platforms that brand has accounts for
+  const selectedBrand = selectedBrandId ? brands.find(b => b.id === selectedBrandId) : null
+  const brandPlatforms = selectedBrand ? selectedBrand.accounts.map(a => a.platform) : null
+  const filteredPosts = brandPlatforms ? posts.filter(p => brandPlatforms.includes(p.platform)) : posts
 
   useEffect(() => {
     loadPosts()
@@ -72,7 +77,7 @@ export default function SocialScheduler() {
     return colors[platform] || 'bg-gray-500'
   }
 
-  if (loading && posts.length === 0) {
+  if (loading && filteredPosts.length === 0) {
     return (
       <div>
         <div className="flex items-center justify-between mb-6">
@@ -89,7 +94,7 @@ export default function SocialScheduler() {
     )
   }
 
-  if (posts.length === 0) {
+  if (filteredPosts.length === 0) {
     return (
       <div>
         <div className="flex items-center justify-between mb-6">
@@ -97,20 +102,30 @@ export default function SocialScheduler() {
             <h2 className="text-3xl font-bold text-gray-900">Social Media Scheduler</h2>
             <p className="text-gray-600 mt-1">Schedule and manage social media posts</p>
           </div>
-          <button className="btn btn-primary flex items-center space-x-2">
-            <Plus className="w-5 h-5" />
-            <span>Create Post</span>
-          </button>
+          {!selectedBrandId && (
+            <button className="btn btn-primary flex items-center space-x-2">
+              <Plus className="w-5 h-5" />
+              <span>Create Post</span>
+            </button>
+          )}
         </div>
 
         <div className="card p-12 text-center">
           <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No scheduled posts</h3>
-          <p className="text-gray-600 mb-6">Create your first social media post</p>
-          <button className="btn btn-primary inline-flex items-center space-x-2">
-            <Plus className="w-5 h-5" />
-            <span>Create Post</span>
-          </button>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            {selectedBrandId ? 'No posts for this brand' : 'No scheduled posts'}
+          </h3>
+          <p className="text-gray-600 mb-6">
+            {selectedBrandId
+              ? 'No posts found for the selected brand\'s platforms'
+              : 'Create your first social media post'}
+          </p>
+          {!selectedBrandId && (
+            <button className="btn btn-primary inline-flex items-center space-x-2">
+              <Plus className="w-5 h-5" />
+              <span>Create Post</span>
+            </button>
+          )}
         </div>
       </div>
     )
@@ -130,7 +145,7 @@ export default function SocialScheduler() {
       </div>
 
       <div className="space-y-4">
-        {posts.map((post) => {
+        {filteredPosts.map((post) => {
           const platformColor = getPlatformColor(post.platform)
           const statusColor = getStatusColor(post.status)
           const platformName = post.platform.charAt(0).toUpperCase() + post.platform.slice(1)

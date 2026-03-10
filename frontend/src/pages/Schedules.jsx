@@ -8,11 +8,16 @@ import { scheduleService } from '../services/scheduleService'
 import { useStore } from '../store'
 
 export default function Schedules() {
-  const { schedules, setSchedules, removeSchedule, accounts, setAccounts } = useStore()
+  const { schedules, setSchedules, removeSchedule, accounts, setAccounts, selectedBrandId } = useStore()
   const { loading, execute } = useApi()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState(null)
   const [selectedAccount, setSelectedAccount] = useState(null)
+
+  // Accounts available for filtering - narrowed to brand if one is selected
+  const brandAccounts = selectedBrandId
+    ? accounts.filter(a => a.brand_id === selectedBrandId)
+    : accounts
 
   useEffect(() => {
     loadData()
@@ -54,6 +59,8 @@ export default function Schedules() {
 
   const filteredSchedules = selectedAccount
     ? schedules.filter(s => s.account_id === selectedAccount)
+    : selectedBrandId
+    ? schedules.filter(s => brandAccounts.some(a => a.id === s.account_id))
     : schedules
 
   return (
@@ -69,27 +76,33 @@ export default function Schedules() {
             setShowCreateModal(true)
           }}
           className="btn btn-primary flex items-center space-x-2"
-          disabled={accounts.length === 0}
+          disabled={brandAccounts.length === 0}
         >
           <Plus className="w-5 h-5" />
           <span>New Schedule</span>
         </button>
       </div>
 
-      {accounts.length === 0 ? (
+      {brandAccounts.length === 0 ? (
         <div className="card p-12 text-center">
           <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Connect an account first</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            {selectedBrandId ? 'No accounts for this brand' : 'Connect an account first'}
+          </h3>
           <p className="text-gray-600 mb-6">
-            You need to connect at least one social media account before creating schedules
+            {selectedBrandId
+              ? 'Connect accounts to this brand from the Brands page before creating schedules'
+              : 'You need to connect at least one social media account before creating schedules'}
           </p>
-          <button
-            onClick={() => window.location.href = '/accounts'}
-            className="btn btn-primary inline-flex items-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Connect Account</span>
-          </button>
+          {!selectedBrandId && (
+            <button
+              onClick={() => window.location.href = '/accounts'}
+              className="btn btn-primary inline-flex items-center space-x-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Connect Account</span>
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -102,7 +115,7 @@ export default function Schedules() {
               className="input max-w-xs"
             >
               <option value="">All Accounts</option>
-              {accounts.map(account => (
+              {brandAccounts.map(account => (
                 <option key={account.id} value={account.id}>
                   {account.platform} - @{account.account_username}
                 </option>
@@ -181,7 +194,7 @@ export default function Schedules() {
       {showCreateModal && (
         <CreateScheduleModal
           schedule={editingSchedule}
-          accounts={accounts}
+          accounts={brandAccounts}
           onClose={() => {
             setShowCreateModal(false)
             setEditingSchedule(null)

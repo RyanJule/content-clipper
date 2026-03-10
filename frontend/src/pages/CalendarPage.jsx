@@ -5,8 +5,12 @@ import { accountService } from '../services/accountService'
 import { useStore } from '../store'
 
 export default function CalendarPage() {
-  const { accounts, setAccounts, selectedAccountId, setSelectedAccountId } = useStore()
+  const { accounts, setAccounts, selectedAccountId, setSelectedAccountId, selectedBrandId } = useStore()
   const [currentMonth, setCurrentMonth] = useState(new Date())
+
+  const brandAccounts = selectedBrandId
+    ? accounts.filter(a => a.brand_id === selectedBrandId)
+    : accounts
 
   useEffect(() => {
     loadAccounts()
@@ -29,7 +33,7 @@ export default function CalendarPage() {
           <p className="text-gray-600 mt-1">View and manage your scheduled posts</p>
         </div>
 
-        {accounts.length > 0 && (
+        {brandAccounts.length > 0 && (
           <div className="flex items-center space-x-2">
             <Filter className="w-5 h-5 text-gray-600" />
             <select
@@ -38,7 +42,7 @@ export default function CalendarPage() {
               className="input max-w-xs"
             >
               <option value="">All Accounts</option>
-              {accounts.map(account => (
+              {brandAccounts.map(account => (
                 <option key={account.id} value={account.id}>
                   {account.platform} - @{account.account_username}
                 </option>
