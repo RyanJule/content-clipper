@@ -571,9 +571,13 @@ async def save_oauth_tokens(
         existing_account.access_token_enc = encrypt_token(
             token_data.get("access_token")
         )
-        existing_account.refresh_token_enc = encrypt_token(
-            token_data.get("refresh_token")
-        )
+        # Only overwrite the stored refresh token if the provider returned a new
+        # one. Google OAuth2 omits refresh_token on repeat authorisations when
+        # the grant is still valid; blindly storing None here would wipe a
+        # perfectly good token and break the next automatic refresh.
+        new_refresh_token = token_data.get("refresh_token")
+        if new_refresh_token:
+            existing_account.refresh_token_enc = encrypt_token(new_refresh_token)
         existing_account.token_expires_at = token_expires_at
         existing_account.is_active = True
         existing_account.account_username = user_info.get("username", "")
@@ -599,12 +603,56 @@ async def save_oauth_tokens(
         return new_account
 
 
+def _is_permanent_auth_failure(exc: Exception) -> bool:
+    """Return True only for definitive credential failures that warrant deactivation.
+
+    Transient problems (network errors, 5xx responses, rate-limiting) should
+    NOT permanently deactivate the account — the next request will retry.
+    Permanent failures (revoked / expired refresh token, bad credentials) mean
+    the user really does need to reconnect.
+    """
+    import httpx
+
+    if isinstance(exc, httpx.HTTPStatusError):
+        status_code = exc.response.status_code
+        # 4xx that signal a bad / revoked credential
+        if status_code in (400, 401):
+            try:
+                body = exc.response.json()
+            except Exception:
+                body = {}
+            permanent_errors = {"invalid_grant", "invalid_client", "invalid_token"}
+            error_code = body.get("error", "")
+            # TikTok wraps errors under {"error": {"code": ...}}
+            if isinstance(error_code, dict):
+                error_code = error_code.get("code", "")
+            if error_code in permanent_errors:
+                return True
+        # 5xx / 429 are transient — do not deactivate
+        return False
+    # Network-level errors (ConnectError, TimeoutException, etc.) are transient
+    if isinstance(exc, (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError)):
+        return False
+    # ValueError("No refresh token available") is a config/data problem, not
+    # necessarily a revoked token — don't deactivate so the issue can be debugged.
+    if isinstance(exc, ValueError):
+        return False
+    # Unknown exceptions: be conservative and don't deactivate
+    return False
+
+
 async def refresh_account_token(db: Session, account: Account) -> Account:
     """Refresh an expired access token.
 
     For Instagram/Facebook, the long-lived access token is refreshed via
     fb_exchange_token (no refresh_token involved). For other providers,
     the standard refresh_token grant is used.
+
+    The account is only marked inactive when the failure is definitively a
+    permanent credential problem (e.g. revoked refresh token). Transient
+    failures (network errors, server errors) are logged and re-raised so the
+    caller can decide how to handle them, but the account stays active so the
+    next request will retry automatically.
     """
     provider = get_oauth_provider(account.platform)
 
@@ -653,14 +701,18 @@ async def refresh_account_token(db: Session, account: Account) -> Account:
             logger.error(
                 f"Failed to refresh Instagram token for account {account.id}: {e}"
             )
-            account.is_active = False
-            db.commit()
+            if _is_permanent_auth_failure(e):
+                account.is_active = False
+                db.commit()
             raise
     else:
         # Standard OAuth refresh_token flow (YouTube, LinkedIn, TikTok)
         refresh_token = decrypt_token(account.refresh_token_enc)
         if not refresh_token:
-            raise ValueError("No refresh token available")
+            raise ValueError(
+                f"No refresh token stored for account {account.id} "
+                f"({account.platform}). Please reconnect the account."
+            )
 
         try:
             token_data = await provider.refresh_access_token(refresh_token)
@@ -686,12 +738,13 @@ async def refresh_account_token(db: Session, account: Account) -> Account:
 
         except Exception as e:
             logger.error(f"Failed to refresh token for account {account.id}: {e}")
-            account.is_active = False
-            db.commit()
+            if _is_permanent_auth_failure(e):
+                account.is_active = False
+                db.commit()
             raise
 
 
-def get_valid_access_token(db: Session, account: Account) -> str:
+async def get_valid_access_token(db: Session, account: Account) -> str:
     """Get a valid access token, refreshing if necessary.
 
     For Instagram accounts, the page access token from meta_info is returned
@@ -704,9 +757,7 @@ def get_valid_access_token(db: Session, account: Account) -> str:
         buffer_time = timedelta(days=7) if account.platform == "instagram" else timedelta(minutes=5)
         if now + buffer_time >= account.token_expires_at:
             logger.info(f"Token expiring soon for account {account.id}, refreshing...")
-            import asyncio
-
-            account = asyncio.run(refresh_account_token(db, account))
+            account = await refresh_account_token(db, account)
 
     # For Instagram, prefer the page access token from meta_info
     if account.platform == "instagram":
