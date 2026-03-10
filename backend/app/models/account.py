@@ -13,6 +13,9 @@ class Account(Base):
     user_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    brand_id = Column(
+        Integer, ForeignKey("brands.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Platform data
     platform = Column(String(50), nullable=False)
@@ -31,6 +34,7 @@ class Account(Base):
 
     # Relationships
     user = relationship("User", back_populates="accounts")
+    brand = relationship("Brand", back_populates="accounts")
     schedules = relationship(
         "ContentSchedule", back_populates="account", cascade="all, delete-orphan"
     )

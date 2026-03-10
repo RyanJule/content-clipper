@@ -2,9 +2,10 @@
 import api from './api'
 
 export const oauthService = {
-  // Initiate OAuth flow
-  initiateOAuth: async platform => {
-    const response = await api.get(`/oauth/${platform}/authorize`)
+  // Initiate OAuth flow. Pass brandId to associate the account with a brand.
+  initiateOAuth: async (platform, brandId = null) => {
+    const params = brandId != null ? { brand_id: brandId } : {}
+    const response = await api.get(`/oauth/${platform}/authorize`, { params })
     return response.data
   },
 

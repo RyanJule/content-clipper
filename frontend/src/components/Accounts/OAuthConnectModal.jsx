@@ -10,41 +10,59 @@ const platforms = [
     name: 'Instagram',
     icon: Instagram,
     color: 'bg-pink-500',
-    description: 'Connect your Instagram account to schedule Reels'
+    description: 'Connect your Instagram account to schedule Reels',
   },
   {
     id: 'youtube',
     name: 'YouTube',
     icon: Youtube,
     color: 'bg-red-600',
-    description: 'Connect your YouTube channel to upload Shorts and videos'
+    description: 'Connect your YouTube channel to upload Shorts and videos',
   },
   {
     id: 'linkedin',
     name: 'LinkedIn',
     icon: Linkedin,
     color: 'bg-blue-700',
-    description: 'Connect your LinkedIn profile for professional content'
+    description: 'Connect your LinkedIn profile for professional content',
   },
   {
     id: 'tiktok',
     name: 'TikTok',
     icon: Music2,
     color: 'bg-black',
-    description: 'Connect your TikTok account to publish videos'
+    description: 'Connect your TikTok account to publish videos',
   },
 ]
 
-export default function OAuthConnectModal({ onClose, onSuccess }) {
+// Platforms allowed per brand (brands only support these three)
+const BRAND_PLATFORMS = ['instagram', 'youtube', 'tiktok']
+
+export default function OAuthConnectModal({ brandId, initialPlatform, onClose, onSuccess }) {
   const [connecting, setConnecting] = useState(null)
   const connectingRef = useRef(null)
   const timeoutRef = useRef(null)
+  const autoStartedRef = useRef(false)
+
+  // When a brandId is provided, only show the brand-compatible platforms
+  const visiblePlatforms = brandId
+    ? platforms.filter(p => BRAND_PLATFORMS.includes(p.id))
+    : platforms
+
+  useEffect(() => {
+    // Auto-start connection if an initial platform was requested (e.g. from BrandCard)
+    if (initialPlatform && !autoStartedRef.current) {
+      autoStartedRef.current = true
+      handleConnect(initialPlatform)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     // Handle messages from OAuth popup.
     // Accept both www and non-www origin variants since the popup
     // may be redirected to a different subdomain variant via FRONTEND_URL.
-    const handleMessage = (event) => {
+    const handleMessage = event => {
       const currentOrigin = window.location.origin
       const wwwVariant = currentOrigin.includes('://www.')
         ? currentOrigin.replace('://www.', '://')
@@ -81,13 +99,13 @@ export default function OAuthConnectModal({ onClose, onSuccess }) {
     }
   }, [onClose, onSuccess])
 
-  const handleConnect = async (platformId) => {
+  const handleConnect = async platformId => {
     setConnecting(platformId)
     connectingRef.current = platformId
 
     try {
-      // Get authorization URL from backend
-      const response = await oauthService.initiateOAuth(platformId)
+      // Get authorization URL from backend (pass brand_id when present)
+      const response = await oauthService.initiateOAuth(platformId, brandId ?? null)
 
       // Open popup window
       const width = 600
@@ -116,7 +134,6 @@ export default function OAuthConnectModal({ onClose, onSuccess }) {
           toast.error('Connection timed out. Please try again.')
         }
       }, 120000)
-
     } catch (error) {
       console.error('OAuth initiation error:', error)
       toast.error(error.response?.data?.detail || 'Failed to initiate connection')
@@ -145,7 +162,7 @@ export default function OAuthConnectModal({ onClose, onSuccess }) {
           </p>
 
           <div className="space-y-3">
-            {platforms.map(platform => (
+            {visiblePlatforms.map(platform => (
               <button
                 key={platform.id}
                 onClick={() => handleConnect(platform.id)}
@@ -176,8 +193,9 @@ export default function OAuthConnectModal({ onClose, onSuccess }) {
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
             <p className="text-sm text-blue-800">
-              <strong>Secure OAuth 2.0:</strong> You'll be redirected to the official platform login page.
-              We never see your password. You can revoke access at any time from your platform's settings.
+              <strong>Secure OAuth 2.0:</strong> You'll be redirected to the official platform login
+              page. We never see your password. You can revoke access at any time from your
+              platform's settings.
             </p>
           </div>
         </div>

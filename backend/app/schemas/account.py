@@ -33,6 +33,7 @@ class AccountUpdate(BaseModel):
 
 class Account(AccountBase):
     id: int
+    brand_id: Optional[int] = None
     connected_at: datetime
     token_expires_at: Optional[datetime] = None
     meta_info: Optional[Dict] = None

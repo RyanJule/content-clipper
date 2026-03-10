@@ -11,6 +11,7 @@ export const useStore = create(set => ({
     set({
       user: null,
       isAuthenticated: false,
+      brands: [],
       media: [],
       clips: [],
       posts: [],
@@ -18,6 +19,16 @@ export const useStore = create(set => ({
       schedules: [],
     })
   },
+
+  // Brands state
+  brands: [],
+  setBrands: brands => set({ brands }),
+  addBrand: brand => set(state => ({ brands: [...state.brands, brand] })),
+  updateBrand: (id, updates) =>
+    set(state => ({
+      brands: state.brands.map(b => (b.id === id ? { ...b, ...updates } : b)),
+    })),
+  removeBrand: id => set(state => ({ brands: state.brands.filter(b => b.id !== id) })),
 
   // Accounts state
   accounts: [],

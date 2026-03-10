@@ -20,6 +20,7 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    brands = relationship("Brand", back_populates="user", cascade="all, delete-orphan")
     accounts = relationship(
         "Account", back_populates="user", cascade="all, delete-orphan"
     )
