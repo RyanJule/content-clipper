@@ -1,9 +1,12 @@
-import { Film, Image, Upload, X } from 'lucide-react'
+import { Calendar, Film, Image, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { youtubeService } from '../../services/youtubeService'
+import { useStore } from '../../store'
+import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess }) {
+  const { schedules, accounts } = useStore()
   const [file, setFile] = useState(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -15,6 +18,7 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
   const [uploadPhase, setUploadPhase] = useState('video') // 'video' | 'thumbnail'
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [thumbnailPreview, setThumbnailPreview] = useState(null)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
   const fileInputRef = useRef(null)
   const thumbnailInputRef = useRef(null)
 
@@ -360,6 +364,15 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
               Cancel
             </button>
             <button
+              type="button"
+              disabled={uploading || !file || !title.trim()}
+              onClick={() => setShowScheduleModal(true)}
+              className="btn btn-secondary flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Schedule</span>
+            </button>
+            <button
               type="submit"
               className="btn btn-primary bg-red-600 hover:bg-red-700"
               disabled={uploading || !file || !title.trim()}
@@ -370,5 +383,19 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
         </form>
       </div>
     </div>
+
+    {showScheduleModal && (
+      <SchedulePostModal
+        initialCaption={`${title.trim()}${description.trim() ? '\n\n' + description.trim() : ''}`}
+        initialHashtags={tags.split(',').map(t => t.trim()).filter(Boolean)}
+        schedules={schedules}
+        accounts={accounts}
+        onClose={() => setShowScheduleModal(false)}
+        onSuccess={() => {
+          setShowScheduleModal(false)
+          onSuccess?.()
+        }}
+      />
+    )}
   )
 }

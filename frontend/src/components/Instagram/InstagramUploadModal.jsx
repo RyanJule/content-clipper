@@ -1,8 +1,11 @@
-import { CheckCircle, Film, Image, LayoutGrid, Loader, Plus, Upload, Video, X } from 'lucide-react'
+import { Calendar, CheckCircle, Film, Image, LayoutGrid, Loader, Plus, Upload, Video, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { instagramService } from '../../services/instagramService'
 import { mediaService } from '../../services/mediaService'
+import { scheduleService } from '../../services/scheduleService'
+import { useStore } from '../../store'
+import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 const TABS = [
   { id: 'image', label: 'Single Image', icon: Image, accept: 'image/jpeg,.jpg,.jpeg' },
@@ -70,6 +73,7 @@ function FileRow({ file, previewUrl, onRemove, disabled }) {
 // ── Main modal ────────────────────────────────────────────────────────────────
 
 export default function InstagramUploadModal({ onClose, onSuccess }) {
+  const { schedules, accounts } = useStore()
   const [activeTab, setActiveTab] = useState('image')
   const [caption, setCaption] = useState('')
 
@@ -85,6 +89,9 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
   // 'idle' | 'uploading' | 'publishing' | 'done'
   const [stage, setStage] = useState('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
+
+  // Scheduling
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
 
   const busy = stage === 'uploading' || stage === 'publishing'
 
@@ -224,6 +231,21 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
     setStage('done')
     toast.success('Carousel published to Instagram!')
     onSuccess?.()
+  }
+
+  const handleSchedule = async () => {
+    if (activeTab === 'carousel') {
+      if (carouselItems.length < 2) {
+        toast.error('Add at least 2 images for a carousel')
+        return
+      }
+    } else {
+      if (!file) {
+        toast.error('Please select a file')
+        return
+      }
+    }
+    setShowScheduleModal(true)
   }
 
   // ── Derived helpers ─────────────────────────────────────────────────────────
@@ -462,6 +484,15 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
               Cancel
             </button>
             <button
+              type="button"
+              disabled={!canPublish}
+              onClick={handleSchedule}
+              className="btn btn-secondary flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Schedule</span>
+            </button>
+            <button
               type="submit"
               disabled={!canPublish}
               className="btn btn-primary bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -472,5 +503,18 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
         </form>
       </div>
     </div>
+
+    {showScheduleModal && (
+      <SchedulePostModal
+        initialCaption={caption}
+        schedules={schedules}
+        accounts={accounts}
+        onClose={() => setShowScheduleModal(false)}
+        onSuccess={() => {
+          setShowScheduleModal(false)
+          onSuccess?.()
+        }}
+      />
+    )}
   )
 }

@@ -56,6 +56,17 @@ export const useStore = create(set => ({
   calendarData: [],
   setCalendarData: data => set({ calendarData: data }),
 
+  // Scheduled posts state
+  scheduledPosts: [],
+  setScheduledPosts: posts => set({ scheduledPosts: posts }),
+  addScheduledPost: post => set(state => ({ scheduledPosts: [...state.scheduledPosts, post] })),
+  updateScheduledPost: (id, updates) =>
+    set(state => ({
+      scheduledPosts: state.scheduledPosts.map(p => (p.id === id ? { ...p, ...updates } : p)),
+    })),
+  removeScheduledPost: id =>
+    set(state => ({ scheduledPosts: state.scheduledPosts.filter(p => p.id !== id) })),
+
   // Selected brand filter (drives account filtering across the app)
   selectedBrandId: null,
   setSelectedBrandId: id => set({ selectedBrandId: id, selectedAccountId: null }),

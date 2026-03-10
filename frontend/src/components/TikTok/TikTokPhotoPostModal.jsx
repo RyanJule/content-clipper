@@ -1,15 +1,19 @@
-import { ImagePlus, Plus, Trash2, X } from 'lucide-react'
+import { Calendar, ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { tiktokService } from '../../services/tiktokService'
+import { useStore } from '../../store'
+import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
+  const { schedules, accounts } = useStore()
   const [photoUrls, setPhotoUrls] = useState([''])
   const [title, setTitle] = useState('')
   const [privacyLevel, setPrivacyLevel] = useState('SELF_ONLY')
   const [disableComment, setDisableComment] = useState(false)
   const [autoAddMusic, setAutoAddMusic] = useState(true)
   const [publishing, setPublishing] = useState(false)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
 
   const addPhotoUrl = () => {
     if (photoUrls.length >= 35) {
@@ -198,6 +202,15 @@ export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
               Cancel
             </button>
             <button
+              type="button"
+              disabled={publishing || photoUrls.every(u => !u.trim())}
+              onClick={() => setShowScheduleModal(true)}
+              className="btn btn-secondary flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Schedule</span>
+            </button>
+            <button
               type="submit"
               className="btn btn-primary bg-gray-900 hover:bg-gray-800"
               disabled={publishing || photoUrls.every(u => !u.trim())}
@@ -208,5 +221,18 @@ export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
         </form>
       </div>
     </div>
+
+    {showScheduleModal && (
+      <SchedulePostModal
+        initialCaption={title}
+        schedules={schedules}
+        accounts={accounts}
+        onClose={() => setShowScheduleModal(false)}
+        onSuccess={() => {
+          setShowScheduleModal(false)
+          onSuccess?.()
+        }}
+      />
+    )}
   )
 }
