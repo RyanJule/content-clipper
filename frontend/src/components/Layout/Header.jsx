@@ -1,12 +1,17 @@
-import { Bell, LogOut, Settings, User } from 'lucide-react'
-import { useState } from 'react'
+import { Bell, Briefcase, LogOut, Settings, User } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { brandService } from '../../services/brandService'
 import { useStore } from '../../store'
 
 export default function Header() {
   const navigate = useNavigate()
-  const { user, logout } = useStore()
+  const { user, logout, brands, setBrands, selectedBrandId, setSelectedBrandId } = useStore()
   const [showUserMenu, setShowUserMenu] = useState(false)
+
+  useEffect(() => {
+    brandService.getAll().then(setBrands).catch(() => {})
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -19,6 +24,25 @@ export default function Header() {
         <h1 className="text-2xl font-bold text-gray-900">Content Clipper</h1>
         <p className="text-sm text-gray-500">AI-powered video clipping and scheduling</p>
       </div>
+
+      {brands.length > 0 && (
+        <div className="flex items-center space-x-2">
+          <Briefcase className="w-4 h-4 text-gray-500" />
+          <select
+            value={selectedBrandId || ''}
+            onChange={e => setSelectedBrandId(e.target.value ? parseInt(e.target.value) : null)}
+            className="input text-sm py-1.5 max-w-[200px]"
+            title="Filter by brand"
+          >
+            <option value="">All Brands</option>
+            {brands.map(brand => (
+              <option key={brand.id} value={brand.id}>
+                {brand.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex items-center space-x-4">
         <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">

@@ -2,8 +2,10 @@ import api from './api'
 
 export const scheduleService = {
   // Schedules
-  getAllSchedules: async (accountId = null) => {
-    const params = accountId ? { account_id: accountId } : {}
+  getAllSchedules: async (accountId = null, brandId = null) => {
+    const params = {}
+    if (accountId) params.account_id = accountId
+    else if (brandId) params.brand_id = brandId
     const response = await api.get('/schedules/', { params })
     return response.data
   },
@@ -35,8 +37,10 @@ export const scheduleService = {
   },
 
   // Calendar
-  getCalendar: async (year, month, accountId = null) => {
-    const params = accountId ? { account_id: accountId } : {}
+  getCalendar: async (year, month, accountId = null, brandId = null) => {
+    const params = {}
+    if (accountId) params.account_id = accountId
+    else if (brandId) params.brand_id = brandId
     const response = await api.get(`/schedules/calendar/${year}/${month}`, { params })
     return response.data
   },
