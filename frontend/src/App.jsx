@@ -3,6 +3,7 @@ import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-d
 import Layout from './components/Layout/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Accounts from './pages/Accounts'
+import BrandsPage from './pages/BrandsPage'
 import CalendarPage from './pages/CalendarPage'
 import ClipsManager from './pages/ClipsManager'
 import Dashboard from './pages/Dashboard'
@@ -50,6 +51,7 @@ function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="brands" element={<BrandsPage />} />
           <Route path="accounts" element={<Accounts />} />
           <Route path="schedules" element={<Schedules />} />
           <Route path="calendar" element={<CalendarPage />} />

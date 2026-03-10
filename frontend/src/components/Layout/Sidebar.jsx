@@ -1,10 +1,11 @@
 import clsx from 'clsx'
-import { Calendar, ChevronLeft, ChevronRight, Clock, Home, Instagram, Music2, Scissors, Share2, Users, Video, Youtube } from 'lucide-react'
+import { Briefcase, Calendar, ChevronLeft, ChevronRight, Clock, Home, Instagram, Music2, Scissors, Share2, Users, Video, Youtube } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useStore } from '../../store'
 
 const navigation = [
   { name: 'Dashboard', to: '/dashboard', icon: Home },
+  { name: 'Brands', to: '/brands', icon: Briefcase },
   { name: 'Accounts', to: '/accounts', icon: Users },
   { name: 'Schedules', to: '/schedules', icon: Clock },
   { name: 'Calendar', to: '/calendar', icon: Calendar },

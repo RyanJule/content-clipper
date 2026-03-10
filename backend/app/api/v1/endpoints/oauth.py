@@ -92,7 +92,10 @@ def get_oauth_state(state: str) -> Optional[dict]:
 
 @router.get("/{platform}/authorize")
 async def oauth_authorize(
-    platform: str, current_user: User = Depends(get_current_active_user)
+    platform: str,
+    brand_id: Optional[int] = None,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
     """Initiate OAuth flow - returns authorization URL"""
     import logging
@@ -103,11 +106,25 @@ async def oauth_authorize(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Validate brand ownership if brand_id provided
+    if brand_id is not None:
+        from app.models.brand import Brand as BrandModel
+        brand = (
+            db.query(BrandModel)
+            .filter(BrandModel.id == brand_id, BrandModel.user_id == current_user.id)
+            .first()
+        )
+        if not brand:
+            raise HTTPException(status_code=404, detail="Brand not found")
+
     # Generate secure state token
     state = secrets.token_urlsafe(32)
 
     # Store in Redis
-    store_oauth_state(state, {"user_id": current_user.id, "platform": platform})
+    state_data: dict = {"user_id": current_user.id, "platform": platform}
+    if brand_id is not None:
+        state_data["brand_id"] = brand_id
+    store_oauth_state(state, state_data)
 
     # Get authorization URL
     auth_url = provider.get_authorization_url(state)
@@ -208,12 +225,14 @@ async def oauth_callback(
         logger.info(f"Got user info for {platform}: {user_info.get('username')}")
 
         # Save to database
+        brand_id = state_data.get("brand_id")
         await save_oauth_tokens(
             db=db,
             user_id=state_data["user_id"],
             platform=platform,
             token_data=token_data,
             user_info=user_info,
+            brand_id=brand_id,
         )
 
         logger.info(

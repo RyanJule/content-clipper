@@ -551,6 +551,7 @@ async def save_oauth_tokens(
     platform: str,
     token_data: Dict,
     user_info: Dict,
+    brand_id: Optional[int] = None,
 ) -> Account:
     """Save OAuth tokens to database"""
     # Calculate token expiration
@@ -559,12 +560,25 @@ async def save_oauth_tokens(
     if expires_in:
         token_expires_at = datetime.utcnow() + timedelta(seconds=int(expires_in))
 
-    # Check if account already exists
-    existing_account = (
-        db.query(Account)
-        .filter(Account.user_id == user_id, Account.platform == platform)
-        .first()
-    )
+    # If brand_id is provided, enforce one account per platform per brand.
+    # Find any existing account for this brand+platform to update rather than duplicate.
+    if brand_id is not None:
+        existing_account = (
+            db.query(Account)
+            .filter(Account.brand_id == brand_id, Account.platform == platform)
+            .first()
+        )
+    else:
+        # Fall back to user-level uniqueness when no brand is specified
+        existing_account = (
+            db.query(Account)
+            .filter(
+                Account.user_id == user_id,
+                Account.platform == platform,
+                Account.brand_id == None,  # noqa: E711
+            )
+            .first()
+        )
 
     if existing_account:
         # Update existing account
@@ -582,6 +596,8 @@ async def save_oauth_tokens(
         existing_account.is_active = True
         existing_account.account_username = user_info.get("username", "")
         existing_account.meta_info = user_info
+        if brand_id is not None:
+            existing_account.brand_id = brand_id
         db.commit()
         db.refresh(existing_account)
         return existing_account
@@ -589,6 +605,7 @@ async def save_oauth_tokens(
         # Create new account
         new_account = Account(
             user_id=user_id,
+            brand_id=brand_id,
             platform=platform,
             account_username=user_info.get("username", ""),
             access_token_enc=encrypt_token(token_data.get("access_token")),
