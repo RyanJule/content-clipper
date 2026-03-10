@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   Eye,
   Heart,
   Image,
@@ -19,7 +18,6 @@ export default function InstagramDashboard() {
   const { loading, execute } = useApi()
   const [accountInfo, setAccountInfo] = useState(null)
   const [media, setMedia] = useState([])
-  const [insights, setInsights] = useState([])
   const [selectedMedia, setSelectedMedia] = useState(null)
   const [comments, setComments] = useState([])
   const [replyText, setReplyText] = useState('')
@@ -29,7 +27,6 @@ export default function InstagramDashboard() {
   useEffect(() => {
     loadAccountInfo()
     loadMedia()
-    loadInsights()
   }, [])
 
   const loadAccountInfo = () => {
@@ -49,19 +46,6 @@ export default function InstagramDashboard() {
         setMedia(data.data || [])
       },
       { errorMessage: 'Failed to load media' }
-    )
-  }
-
-  const loadInsights = () => {
-    execute(
-      async () => {
-        const data = await instagramService.getAccountInsights({
-          metrics: 'impressions,reach,profile_views',
-          period: 'day',
-        })
-        setInsights(data.data || [])
-      },
-      {} // Silently fail for insights — may not have permission
     )
   }
 
@@ -224,32 +208,6 @@ export default function InstagramDashboard() {
                 <p className="text-sm text-gray-500">Following</p>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Insights */}
-      {insights.length > 0 && (
-        <div className="card mb-6">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-              <BarChart3 className="w-5 h-5" />
-              <span>Insights</span>
-            </h3>
-          </div>
-          <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {insights.map(insight => (
-              <div key={insight.name} className="text-center p-3 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCount(
-                    insight.values?.[0]?.value || 0
-                  )}
-                </p>
-                <p className="text-sm text-gray-500 capitalize">
-                  {insight.name?.replace(/_/g, ' ')}
-                </p>
-              </div>
-            ))}
           </div>
         </div>
       )}
