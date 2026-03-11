@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  Edit2,
   ExternalLink,
   Eye,
   Film,
@@ -38,6 +37,7 @@ export default function YouTubeStudio() {
     loadVideos()
     // Preload schedules so SchedulePostModal works without visiting Schedules page
     scheduleService.getAllSchedules().then(setSchedules).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadChannel = () => {

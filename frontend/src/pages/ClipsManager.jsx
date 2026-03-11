@@ -20,6 +20,7 @@ export default function ClipsManager() {
   useEffect(() => {
     loadClips()
     loadMedia()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadClips = async () => {

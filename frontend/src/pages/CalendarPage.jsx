@@ -26,6 +26,7 @@ export default function CalendarPage() {
   useEffect(() => {
     loadAccounts()
     loadSchedules()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadAccounts = async () => {
@@ -89,7 +90,7 @@ export default function CalendarPage() {
       {schedules.length === 0 && (
         <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
           <strong>No posting schedules yet.</strong> Create a schedule to define recurring posting
-          times — they'll appear as slots on the calendar that you can fill with content.{' '}
+          times — they&apos;ll appear as slots on the calendar that you can fill with content.{' '}
           <button
             onClick={() => navigate('/schedules')}
             className="underline font-medium hover:text-blue-900"

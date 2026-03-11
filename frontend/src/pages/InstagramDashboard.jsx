@@ -17,7 +17,7 @@ import { scheduleService } from '../services/scheduleService'
 import { useStore } from '../store'
 
 export default function InstagramDashboard() {
-  const { setSchedules, setAccounts } = useStore()
+  const { setSchedules } = useStore()
   const { loading, execute } = useApi()
   const [accountInfo, setAccountInfo] = useState(null)
   const [media, setMedia] = useState([])
@@ -32,6 +32,7 @@ export default function InstagramDashboard() {
     loadMedia()
     // Preload schedules and accounts so SchedulePostModal works without visiting Schedules page
     scheduleService.getAllSchedules().then(setSchedules).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadAccountInfo = () => {

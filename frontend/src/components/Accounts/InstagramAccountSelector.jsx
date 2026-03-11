@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Instagram, CheckCircle, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 

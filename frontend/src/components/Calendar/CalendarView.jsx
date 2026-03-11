@@ -29,6 +29,7 @@ export default function CalendarView({ compact = false, currentMonth: initialMon
 
   useEffect(() => {
     loadCalendarData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate, selectedAccountId, selectedBrandId])
 
   // When a day is selected, load its schedule slots
@@ -44,6 +45,7 @@ export default function CalendarView({ compact = false, currentMonth: initialMon
       .then(setDaySlots)
       .catch(() => setDaySlots([]))
       .finally(() => setLoadingSlots(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDay, selectedAccountId, selectedBrandId])
 
   const loadCalendarData = async () => {

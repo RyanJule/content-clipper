@@ -22,7 +22,7 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
   const [videoPreviewUrl, setVideoPreviewUrl] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [publishId, setPublishId] = useState(null)
+  const [, setPublishId] = useState(null)
   // 'polling' | 'done' | 'failed' | null
   const [publishStatus, setPublishStatus] = useState(null)
   const fileInputRef = useRef(null)

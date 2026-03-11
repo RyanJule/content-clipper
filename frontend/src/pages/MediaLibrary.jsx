@@ -7,8 +7,8 @@ import { useStore } from '../store'
 import { formatDateTime, formatDuration, formatFileSize } from '../utils/formatters'
 
 export default function MediaLibrary() {
-  const { media, setMedia, removeMedia, addMedia } = useStore()
-  const { loading, execute } = useApi()
+  const { media, setMedia, removeMedia } = useStore()
+  const { loading } = useApi()
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [playerMedia, setPlayerMedia] = useState(null)
@@ -18,6 +18,7 @@ export default function MediaLibrary() {
 
   useEffect(() => {
     loadMedia()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadMedia = async () => {

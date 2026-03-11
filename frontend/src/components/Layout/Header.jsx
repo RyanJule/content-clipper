@@ -11,6 +11,7 @@ export default function Header() {
 
   useEffect(() => {
     brandService.getAll().then(setBrands).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleLogout = () => {

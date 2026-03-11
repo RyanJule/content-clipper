@@ -52,7 +52,7 @@ export default function SchedulePostModal({
   accounts: accountsProp = null,
   schedules: schedulesProp = null,
 }) {
-  const { accounts: storeAccounts, schedules: storeSchedules, selectedAccountId } = useStore()
+  const { accounts: storeAccounts, schedules: storeSchedules } = useStore()
 
   const accounts = accountsProp ?? storeAccounts
   const schedules = schedulesProp ?? storeSchedules
@@ -95,6 +95,7 @@ export default function SchedulePostModal({
       })
       .catch(() => setSlots([]))
       .finally(() => setLoadingSlots(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleId, date])
 
   const selectedSchedule = schedules.find(s => s.id === Number(scheduleId))
