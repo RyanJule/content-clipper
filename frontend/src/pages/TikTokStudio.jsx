@@ -1,6 +1,5 @@
 import {
   BookOpen,
-  ExternalLink,
   Heart,
   ImagePlus,
   Music2,
@@ -36,6 +35,7 @@ export default function TikTokStudio() {
     loadCreatorInfo()
     // Preload schedules so SchedulePostModal works without visiting Schedules page
     scheduleService.getAllSchedules().then(setSchedules).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadAccount = () => {

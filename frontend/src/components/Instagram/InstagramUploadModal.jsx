@@ -3,7 +3,6 @@ import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { instagramService } from '../../services/instagramService'
 import { mediaService } from '../../services/mediaService'
-import { scheduleService } from '../../services/scheduleService'
 import { useStore } from '../../store'
 import SchedulePostModal from '../Schedule/SchedulePostModal'
 
@@ -313,6 +312,7 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
   // ── Main form ───────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -516,5 +516,6 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
         }}
       />
     )}
+    </>
   )
 }

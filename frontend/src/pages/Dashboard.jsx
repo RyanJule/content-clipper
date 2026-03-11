@@ -12,35 +12,32 @@ import AccountCard from '../components/Accounts/AccountCard'
 import CalendarView from '../components/Calendar/CalendarView'
 import ScheduleCard from '../components/Schedule/ScheduleCard'
 import { accountService } from '../services/accountService'
-import { clipService } from '../services/clipService'
-import { mediaService } from '../services/mediaService'
 import { scheduleService } from '../services/scheduleService'
 import { useStore } from '../store'
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { accounts, setAccounts, schedules, setSchedules, selectedAccountId } = useStore()
+  const { accounts, setAccounts, schedules, setSchedules } = useStore()
   const [stats, setStats] = useState({
     totalAccounts: 0,
     activeSchedules: 0,
     postsThisWeek: 0,
     avgEngagement: 0,
   })
-  const [loading, setLoading] = useState(true)
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [, setLoading] = useState(true)
+  const [currentMonth] = useState(new Date())
 
   useEffect(() => {
     loadDashboardData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadDashboardData = async () => {
     setLoading(true)
     try {
-      const [accountsData, schedulesData, mediaData, clipsData] = await Promise.all([
+      const [accountsData, schedulesData] = await Promise.all([
         accountService.getAll().catch(() => []),
         scheduleService.getAllSchedules().catch(() => []),
-        mediaService.getAll().catch(() => []),
-        clipService.getAll().catch(() => []),
       ])
 
       setAccounts(accountsData)
