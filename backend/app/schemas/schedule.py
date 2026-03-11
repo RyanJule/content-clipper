@@ -1,5 +1,5 @@
-from datetime import datetime, time
-from typing import Dict, List, Optional
+from datetime import datetime
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -49,6 +49,7 @@ class ScheduledPostBase(BaseModel):
 class ScheduledPostCreate(ScheduledPostBase):
     schedule_id: int
     clip_id: Optional[int] = None
+    status: Optional[str] = "pending"  # pending | content_ready | scheduled
 
 
 class ScheduledPostUpdate(BaseModel):
@@ -92,3 +93,13 @@ class ScheduleSuggestion(BaseModel):
     estimated_engagement: int
     estimated_growth: int
     reasoning: str
+
+
+class ScheduleSlot(BaseModel):
+    schedule_id: int
+    schedule_name: str
+    account_id: int
+    slot_time: str  # HH:MM
+    scheduled_datetime: str  # ISO format datetime string
+    is_taken: bool
+    scheduled_post: Optional[ScheduledPost] = None

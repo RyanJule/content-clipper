@@ -13,8 +13,11 @@ import toast from 'react-hot-toast'
 import InstagramUploadModal from '../components/Instagram/InstagramUploadModal'
 import { useApi } from '../hooks/useApi'
 import { instagramService } from '../services/instagramService'
+import { scheduleService } from '../services/scheduleService'
+import { useStore } from '../store'
 
 export default function InstagramDashboard() {
+  const { setSchedules, setAccounts } = useStore()
   const { loading, execute } = useApi()
   const [accountInfo, setAccountInfo] = useState(null)
   const [media, setMedia] = useState([])
@@ -27,6 +30,8 @@ export default function InstagramDashboard() {
   useEffect(() => {
     loadAccountInfo()
     loadMedia()
+    // Preload schedules and accounts so SchedulePostModal works without visiting Schedules page
+    scheduleService.getAllSchedules().then(setSchedules).catch(() => {})
   }, [])
 
   const loadAccountInfo = () => {
