@@ -28,6 +28,7 @@ export default function BrandsPage() {
 
   useEffect(() => {
     loadBrands()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleCreate = async payload => {

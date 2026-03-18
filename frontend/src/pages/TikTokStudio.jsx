@@ -1,6 +1,5 @@
 import {
   BookOpen,
-  ExternalLink,
   Heart,
   ImagePlus,
   Music2,
@@ -13,6 +12,8 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useApi } from '../hooks/useApi'
 import { tiktokService } from '../services/tiktokService'
+import { scheduleService } from '../services/scheduleService'
+import { useStore } from '../store'
 import TikTokVideoUploadModal from '../components/TikTok/TikTokVideoUploadModal'
 import TikTokPhotoPostModal from '../components/TikTok/TikTokPhotoPostModal'
 import TikTokStoryModal from '../components/TikTok/TikTokStoryModal'
@@ -20,6 +21,7 @@ import { scheduleService } from '../services/scheduleService'
 import { useStore } from '../store'
 
 export default function TikTokStudio() {
+  const { setSchedules } = useStore()
   const { loading, execute } = useApi()
   const { setSchedules } = useStore()
   const [account, setAccount] = useState(null)
@@ -34,7 +36,9 @@ export default function TikTokStudio() {
   useEffect(() => {
     loadAccount()
     loadCreatorInfo()
+    // Preload schedules so SchedulePostModal works without visiting Schedules page
     scheduleService.getAllSchedules().then(setSchedules).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadAccount = () => {

@@ -7,7 +7,6 @@ const PLATFORM_META = {
 }
 
 export default function BrandCard({ brand, onEdit, onDelete, onConnectAccount }) {
-  const connectedPlatforms = brand.accounts.map(a => a.platform)
   const allPlatforms = ['instagram', 'youtube', 'tiktok']
 
   return (

@@ -2,9 +2,11 @@ import { Calendar, ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { tiktokService } from '../../services/tiktokService'
+import { useStore } from '../../store'
 import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
+  const { schedules, accounts } = useStore()
   const [photoUrls, setPhotoUrls] = useState([''])
   const [title, setTitle] = useState('')
   const [privacyLevel, setPrivacyLevel] = useState('SELF_ONLY')
@@ -61,6 +63,7 @@ export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
   }
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
@@ -201,9 +204,9 @@ export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
             </button>
             <button
               type="button"
+              disabled={publishing || photoUrls.every(u => !u.trim())}
               onClick={() => setShowScheduleModal(true)}
-              disabled={publishing}
-              className="btn btn-secondary flex items-center space-x-1"
+              className="btn btn-secondary flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Calendar className="w-4 h-4" />
               <span>Schedule</span>
@@ -229,5 +232,19 @@ export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
         />
       )}
     </div>
+
+    {showScheduleModal && (
+      <SchedulePostModal
+        initialCaption={title}
+        schedules={schedules}
+        accounts={accounts}
+        onClose={() => setShowScheduleModal(false)}
+        onSuccess={() => {
+          setShowScheduleModal(false)
+          onSuccess?.()
+        }}
+      />
+    )}
+    </>
   )
 }

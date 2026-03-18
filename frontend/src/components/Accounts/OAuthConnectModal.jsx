@@ -193,9 +193,9 @@ export default function OAuthConnectModal({ brandId, initialPlatform, onClose, o
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
             <p className="text-sm text-blue-800">
-              <strong>Secure OAuth 2.0:</strong> You'll be redirected to the official platform login
+              <strong>Secure OAuth 2.0:</strong> You&apos;ll be redirected to the official platform login
               page. We never see your password. You can revoke access at any time from your
-              platform's settings.
+              platform&apos;s settings.
             </p>
           </div>
         </div>

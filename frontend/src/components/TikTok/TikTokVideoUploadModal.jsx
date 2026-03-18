@@ -2,6 +2,7 @@ import { AlertCircle, Calendar, CheckCircle, Clock, Loader, Upload, X } from 'lu
 import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { tiktokService } from '../../services/tiktokService'
+import { useStore } from '../../store'
 import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 const PRIVACY_LABELS = {
@@ -15,12 +16,13 @@ const POLL_INTERVAL_MS = 3000
 const MAX_POLL_ATTEMPTS = 40
 
 export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
+  const { schedules, accounts } = useStore()
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [file, setFile] = useState(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [publishId, setPublishId] = useState(null)
+  const [, setPublishId] = useState(null)
   // 'polling' | 'done' | 'failed' | null
   const [publishStatus, setPublishStatus] = useState(null)
   const fileInputRef = useRef(null)
@@ -301,6 +303,7 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
   // ==================== Upload form ====================
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
@@ -630,9 +633,9 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
             </button>
             <button
               type="button"
+              disabled={uploading || !file || creatorLoading || !!creatorError || !privacyLevel}
               onClick={() => setShowScheduleModal(true)}
-              disabled={uploading}
-              className="btn btn-secondary flex items-center space-x-1"
+              className="btn btn-secondary flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Calendar className="w-4 h-4" />
               <span>Schedule</span>
@@ -663,5 +666,19 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
         />
       )}
     </div>
+
+    {showScheduleModal && (
+      <SchedulePostModal
+        initialCaption={title}
+        schedules={schedules}
+        accounts={accounts}
+        onClose={() => setShowScheduleModal(false)}
+        onSuccess={() => {
+          setShowScheduleModal(false)
+          onSuccess?.()
+        }}
+      />
+    )}
+    </>
   )
 }

@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  Edit2,
   ExternalLink,
   Eye,
   Film,
@@ -16,6 +15,8 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useApi } from '../hooks/useApi'
 import { youtubeService } from '../services/youtubeService'
+import { scheduleService } from '../services/scheduleService'
+import { useStore } from '../store'
 import YouTubeUploadModal from '../components/YouTube/YouTubeUploadModal'
 import YouTubeCommunityModal from '../components/YouTube/YouTubeCommunityModal'
 import YouTubeThumbnailModal from '../components/YouTube/YouTubeThumbnailModal'
@@ -23,6 +24,7 @@ import { scheduleService } from '../services/scheduleService'
 import { useStore } from '../store'
 
 export default function YouTubeStudio() {
+  const { setSchedules } = useStore()
   const { loading, execute } = useApi()
   const { setSchedules } = useStore()
   const [channel, setChannel] = useState(null)
@@ -36,7 +38,9 @@ export default function YouTubeStudio() {
   useEffect(() => {
     loadChannel()
     loadVideos()
+    // Preload schedules so SchedulePostModal works without visiting Schedules page
     scheduleService.getAllSchedules().then(setSchedules).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadChannel = () => {

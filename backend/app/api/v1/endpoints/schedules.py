@@ -20,6 +20,7 @@ from app.schemas.schedule import (
     ScheduledPostUpdate,
     ScheduleSlot,
     ScheduleSuggestion,
+    ScheduleSlot,
 )
 
 router = APIRouter()
@@ -287,6 +288,83 @@ async def get_calendar_view(
         )
 
     return calendar_days
+
+
+@router.get("/slots/{year}/{month}/{day}", response_model=List[ScheduleSlot])
+async def get_day_slots(
+    year: int,
+    month: int,
+    day: int,
+    account_id: int = None,
+    brand_id: int = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get available posting slots for a specific day based on active ContentSchedules."""
+    try:
+        target_date = datetime(year, month, day)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date")
+
+    # Day of week: Python's weekday() returns 0=Monday, 6=Sunday (matches our schema)
+    day_of_week = target_date.weekday()
+
+    # Get active schedules for the user, optionally filtered
+    query = db.query(ScheduleModel).filter(
+        ScheduleModel.user_id == current_user.id,
+        ScheduleModel.is_active == True,  # noqa: E712
+    )
+    if account_id:
+        query = query.filter(ScheduleModel.account_id == account_id)
+    elif brand_id:
+        query = query.join(Account).filter(Account.brand_id == brand_id)
+
+    schedules = query.all()
+
+    slots: List[ScheduleSlot] = []
+    for schedule in schedules:
+        # Check if this schedule covers the target day
+        if day_of_week not in (schedule.days_of_week or []):
+            continue
+
+        for time_str in schedule.posting_times or []:
+            try:
+                hour, minute = map(int, time_str.split(":"))
+                slot_dt = target_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            except (ValueError, AttributeError):
+                continue
+
+            # Check if a ScheduledPost already occupies this slot (within 30-min window)
+            window_start = slot_dt - timedelta(minutes=15)
+            window_end = slot_dt + timedelta(minutes=15)
+            existing_post = (
+                db.query(ScheduledPostModel)
+                .filter(
+                    ScheduledPostModel.user_id == current_user.id,
+                    ScheduledPostModel.schedule_id == schedule.id,
+                    ScheduledPostModel.scheduled_for >= window_start,
+                    ScheduledPostModel.scheduled_for <= window_end,
+                )
+                .first()
+            )
+
+            slots.append(
+                ScheduleSlot(
+                    schedule_id=schedule.id,
+                    schedule_name=schedule.name,
+                    account_id=schedule.account_id,
+                    slot_time=time_str,
+                    scheduled_datetime=slot_dt.isoformat(),
+                    is_taken=existing_post is not None,
+                    scheduled_post=ScheduledPost.model_validate(existing_post)
+                    if existing_post
+                    else None,
+                )
+            )
+
+    # Sort slots by time
+    slots.sort(key=lambda s: s.slot_time)
+    return slots
 
 
 @router.post(

@@ -1,4 +1,4 @@
-import { CalendarDays, Filter, Plus } from 'lucide-react'
+import { Filter, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CalendarView from '../components/Calendar/CalendarView'
@@ -7,7 +7,6 @@ import { scheduleService } from '../services/scheduleService'
 import { useStore } from '../store'
 
 export default function CalendarPage() {
-  const navigate = useNavigate()
   const {
     accounts,
     setAccounts,
@@ -18,6 +17,7 @@ export default function CalendarPage() {
     selectedBrandId,
   } = useStore()
   const [currentMonth] = useState(new Date())
+  const navigate = useNavigate()
 
   const brandAccounts = selectedBrandId
     ? accounts.filter(a => a.brand_id === selectedBrandId)
@@ -26,6 +26,7 @@ export default function CalendarPage() {
   useEffect(() => {
     loadAccounts()
     loadSchedules()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadAccounts = async () => {
@@ -39,7 +40,10 @@ export default function CalendarPage() {
 
   const loadSchedules = async () => {
     try {
-      const data = await scheduleService.getAllSchedules()
+      const data = await scheduleService.getAllSchedules(
+        null,
+        selectedBrandId || null
+      )
       setSchedules(data)
     } catch (error) {
       console.error('Failed to load schedules:', error)
@@ -57,7 +61,7 @@ export default function CalendarPage() {
         <div className="flex items-center space-x-3">
           {brandAccounts.length > 0 && (
             <div className="flex items-center space-x-2">
-              <Filter className="w-5 h-5 text-gray-600" />
+              <Filter className="w-5 h-5 text-gray-500" />
               <select
                 value={selectedAccountId || ''}
                 onChange={e => setSelectedAccountId(e.target.value ? parseInt(e.target.value) : null)}
@@ -72,9 +76,10 @@ export default function CalendarPage() {
               </select>
             </div>
           )}
+
           <button
             onClick={() => navigate('/schedules')}
-            className="btn btn-secondary flex items-center space-x-2"
+            className="flex items-center space-x-1.5 btn btn-secondary text-sm"
           >
             <Plus className="w-4 h-4" />
             <span>New Schedule</span>
@@ -83,21 +88,15 @@ export default function CalendarPage() {
       </div>
 
       {schedules.length === 0 && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start space-x-3">
-          <CalendarDays className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-blue-800">No schedules yet</p>
-            <p className="text-sm text-blue-700 mt-0.5">
-              Create a content schedule to define which days and times to post, then use the
-              calendar to fill those slots.{' '}
-              <button
-                onClick={() => navigate('/schedules')}
-                className="underline font-medium"
-              >
-                Create a schedule →
-              </button>
-            </p>
-          </div>
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+          <strong>No posting schedules yet.</strong> Create a schedule to define recurring posting
+          times — they&apos;ll appear as slots on the calendar that you can fill with content.{' '}
+          <button
+            onClick={() => navigate('/schedules')}
+            className="underline font-medium hover:text-blue-900"
+          >
+            Create a schedule
+          </button>
         </div>
       )}
 

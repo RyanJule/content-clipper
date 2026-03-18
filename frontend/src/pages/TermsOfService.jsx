@@ -31,7 +31,7 @@ export default function TermsOfService() {
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Agreement to Terms</h2>
               <p className="text-gray-700 mb-4">
-                By accessing and using Content Clipper ("the Service"), you accept and agree to be bound by the terms and provision of this agreement.
+                By accessing and using Content Clipper (&quot;the Service&quot;), you accept and agree to be bound by the terms and provision of this agreement.
               </p>
               <p className="text-gray-700">
                 If you do not agree to these Terms of Service, please do not use the Service.
@@ -130,7 +130,7 @@ export default function TermsOfService() {
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">8. Limitation of Liability</h2>
               <p className="text-gray-700 mb-4">
-                THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+                THE SERVICE IS PROVIDED &quot;AS IS&quot; WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED.
               </p>
               <p className="text-gray-700 mb-4">
                 Content Clipper shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use or inability to use the Service.

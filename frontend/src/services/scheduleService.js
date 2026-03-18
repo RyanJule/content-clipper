@@ -45,9 +45,12 @@ export const scheduleService = {
     return response.data
   },
 
-  // Day slots
-  getDaySlots: async (year, month, day) => {
-    const response = await api.get(`/schedules/slots/${year}/${month}/${day}`)
+  // Day slots (from ContentSchedule patterns)
+  getDaySlots: async (year, month, day, accountId = null, brandId = null) => {
+    const params = {}
+    if (accountId) params.account_id = accountId
+    else if (brandId) params.brand_id = brandId
+    const response = await api.get(`/schedules/slots/${year}/${month}/${day}`, { params })
     return response.data
   },
 

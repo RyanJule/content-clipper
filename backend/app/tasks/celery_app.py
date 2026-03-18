@@ -25,9 +25,9 @@ celery_app.conf.update(
     task_time_limit=3600,
     task_soft_time_limit=3000,
     beat_schedule={
-        "publish-due-scheduled-posts": {
-            "task": "app.tasks.scheduled_posting.publish_due_posts",
-            "schedule": crontab(minute="*"),  # every minute
+        "publish-scheduled-posts-every-minute": {
+            "task": "app.tasks.scheduled_posting.publish_scheduled_posts",
+            "schedule": 60.0,  # every 60 seconds
         },
     },
 )

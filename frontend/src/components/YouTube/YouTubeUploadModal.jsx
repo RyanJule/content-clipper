@@ -2,9 +2,11 @@ import { Calendar, Film, Image, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { youtubeService } from '../../services/youtubeService'
+import { useStore } from '../../store'
 import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess }) {
+  const { schedules, accounts } = useStore()
   const [file, setFile] = useState(null)
   const [title, setTitle] = useState('')
   const [showScheduleModal, setShowScheduleModal] = useState(false)
@@ -17,6 +19,7 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
   const [uploadPhase, setUploadPhase] = useState('video') // 'video' | 'thumbnail'
   const [thumbnailFile, setThumbnailFile] = useState(null)
   const [thumbnailPreview, setThumbnailPreview] = useState(null)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
   const fileInputRef = useRef(null)
   const thumbnailInputRef = useRef(null)
 
@@ -137,6 +140,7 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
   }
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
@@ -363,9 +367,9 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
             </button>
             <button
               type="button"
+              disabled={uploading || !file || !title.trim()}
               onClick={() => setShowScheduleModal(true)}
-              disabled={uploading}
-              className="btn btn-secondary flex items-center space-x-1"
+              className="btn btn-secondary flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Calendar className="w-4 h-4" />
               <span>Schedule</span>
@@ -391,5 +395,20 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
         />
       )}
     </div>
+
+    {showScheduleModal && (
+      <SchedulePostModal
+        initialCaption={`${title.trim()}${description.trim() ? '\n\n' + description.trim() : ''}`}
+        initialHashtags={tags.split(',').map(t => t.trim()).filter(Boolean)}
+        schedules={schedules}
+        accounts={accounts}
+        onClose={() => setShowScheduleModal(false)}
+        onSuccess={() => {
+          setShowScheduleModal(false)
+          onSuccess?.()
+        }}
+      />
+    )}
+    </>
   )
 }

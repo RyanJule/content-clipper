@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { instagramService } from '../../services/instagramService'
 import { mediaService } from '../../services/mediaService'
+import { useStore } from '../../store'
 import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 const TABS = [
@@ -71,6 +72,7 @@ function FileRow({ file, previewUrl, onRemove, disabled }) {
 // ── Main modal ────────────────────────────────────────────────────────────────
 
 export default function InstagramUploadModal({ onClose, onSuccess }) {
+  const { schedules, accounts } = useStore()
   const [activeTab, setActiveTab] = useState('image')
   const [caption, setCaption] = useState('')
   const [showScheduleModal, setShowScheduleModal] = useState(false)
@@ -87,6 +89,9 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
   // 'idle' | 'uploading' | 'publishing' | 'done'
   const [stage, setStage] = useState('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
+
+  // Scheduling
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
 
   const busy = stage === 'uploading' || stage === 'publishing'
 
@@ -228,6 +233,21 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
     onSuccess?.()
   }
 
+  const handleSchedule = async () => {
+    if (activeTab === 'carousel') {
+      if (carouselItems.length < 2) {
+        toast.error('Add at least 2 images for a carousel')
+        return
+      }
+    } else {
+      if (!file) {
+        toast.error('Please select a file')
+        return
+      }
+    }
+    setShowScheduleModal(true)
+  }
+
   // ── Derived helpers ─────────────────────────────────────────────────────────
 
   const currentTab = TABS.find(t => t.id === activeTab)
@@ -293,6 +313,7 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
   // ── Main form ───────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -465,8 +486,9 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
             </button>
             <button
               type="button"
-              onClick={() => setShowScheduleModal(true)}
-              className="btn btn-secondary flex items-center space-x-1"
+              disabled={!canPublish}
+              onClick={handleSchedule}
+              className="btn btn-secondary flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Calendar className="w-4 h-4" />
               <span>Schedule</span>
@@ -492,5 +514,19 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
         />
       )}
     </div>
+
+    {showScheduleModal && (
+      <SchedulePostModal
+        initialCaption={caption}
+        schedules={schedules}
+        accounts={accounts}
+        onClose={() => setShowScheduleModal(false)}
+        onSuccess={() => {
+          setShowScheduleModal(false)
+          onSuccess?.()
+        }}
+      />
+    )}
+    </>
   )
 }
