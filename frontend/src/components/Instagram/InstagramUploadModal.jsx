@@ -1,8 +1,9 @@
-import { CheckCircle, Film, Image, LayoutGrid, Loader, Plus, Upload, Video, X } from 'lucide-react'
+import { Calendar, CheckCircle, Film, Image, LayoutGrid, Loader, Plus, Upload, Video, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { instagramService } from '../../services/instagramService'
 import { mediaService } from '../../services/mediaService'
+import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 const TABS = [
   { id: 'image', label: 'Single Image', icon: Image, accept: 'image/jpeg,.jpg,.jpeg' },
@@ -72,6 +73,7 @@ function FileRow({ file, previewUrl, onRemove, disabled }) {
 export default function InstagramUploadModal({ onClose, onSuccess }) {
   const [activeTab, setActiveTab] = useState('image')
   const [caption, setCaption] = useState('')
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
 
   // Single-file state (image / video / reel)
   const [file, setFile] = useState(null)
@@ -462,6 +464,14 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
               Cancel
             </button>
             <button
+              type="button"
+              onClick={() => setShowScheduleModal(true)}
+              className="btn btn-secondary flex items-center space-x-1"
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Schedule</span>
+            </button>
+            <button
               type="submit"
               disabled={!canPublish}
               className="btn btn-primary bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -471,6 +481,16 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
           </div>
         </form>
       </div>
+      {showScheduleModal && (
+        <SchedulePostModal
+          initialCaption={caption}
+          onClose={() => setShowScheduleModal(false)}
+          onSuccess={() => {
+            setShowScheduleModal(false)
+            onClose()
+          }}
+        />
+      )}
     </div>
   )
 }

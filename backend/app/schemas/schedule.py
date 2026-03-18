@@ -49,6 +49,7 @@ class ScheduledPostBase(BaseModel):
 class ScheduledPostCreate(ScheduledPostBase):
     schedule_id: int
     clip_id: Optional[int] = None
+    status: Optional[str] = None  # 'pending', 'content_ready', 'scheduled'
 
 
 class ScheduledPostUpdate(BaseModel):
@@ -74,6 +75,15 @@ class ScheduledPost(ScheduledPostBase):
 
     class Config:
         from_attributes = True
+
+
+class ScheduleSlot(BaseModel):
+    schedule_id: int
+    schedule_name: str
+    time: str  # HH:MM
+    scheduled_for: datetime
+    is_taken: bool
+    post: Optional[ScheduledPost] = None
 
 
 class CalendarDay(BaseModel):

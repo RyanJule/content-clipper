@@ -1,11 +1,13 @@
-import { Film, Image, Upload, X } from 'lucide-react'
+import { Calendar, Film, Image, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { youtubeService } from '../../services/youtubeService'
+import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess }) {
   const [file, setFile] = useState(null)
   const [title, setTitle] = useState('')
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState('')
   const [privacyStatus, setPrivacyStatus] = useState(isShort ? 'public' : 'private')
@@ -360,6 +362,15 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
               Cancel
             </button>
             <button
+              type="button"
+              onClick={() => setShowScheduleModal(true)}
+              disabled={uploading}
+              className="btn btn-secondary flex items-center space-x-1"
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Schedule</span>
+            </button>
+            <button
               type="submit"
               className="btn btn-primary bg-red-600 hover:bg-red-700"
               disabled={uploading || !file || !title.trim()}
@@ -369,6 +380,16 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
           </div>
         </form>
       </div>
+      {showScheduleModal && (
+        <SchedulePostModal
+          initialCaption={title}
+          onClose={() => setShowScheduleModal(false)}
+          onSuccess={() => {
+            setShowScheduleModal(false)
+            onClose()
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -1,7 +1,8 @@
-import { AlertCircle, CheckCircle, Clock, Loader, Upload, X } from 'lucide-react'
+import { AlertCircle, Calendar, CheckCircle, Clock, Loader, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { tiktokService } from '../../services/tiktokService'
+import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 const PRIVACY_LABELS = {
   PUBLIC_TO_EVERYONE: 'Public',
@@ -14,6 +15,7 @@ const POLL_INTERVAL_MS = 3000
 const MAX_POLL_ATTEMPTS = 40
 
 export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [file, setFile] = useState(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -627,6 +629,15 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
               Cancel
             </button>
             <button
+              type="button"
+              onClick={() => setShowScheduleModal(true)}
+              disabled={uploading}
+              className="btn btn-secondary flex items-center space-x-1"
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Schedule</span>
+            </button>
+            <button
               type="submit"
               className="btn btn-primary bg-gray-900 hover:bg-gray-800 disabled:opacity-50"
               disabled={publishDisabled}
@@ -641,6 +652,16 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
           </div>
         </form>
       </div>
+      {showScheduleModal && (
+        <SchedulePostModal
+          initialCaption={title}
+          onClose={() => setShowScheduleModal(false)}
+          onSuccess={() => {
+            setShowScheduleModal(false)
+            onClose()
+          }}
+        />
+      )}
     </div>
   )
 }

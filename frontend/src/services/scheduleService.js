@@ -45,6 +45,12 @@ export const scheduleService = {
     return response.data
   },
 
+  // Day slots
+  getDaySlots: async (year, month, day) => {
+    const response = await api.get(`/schedules/slots/${year}/${month}/${day}`)
+    return response.data
+  },
+
   // Scheduled Posts
   createPost: async postData => {
     const response = await api.post('/schedules/posts', postData)

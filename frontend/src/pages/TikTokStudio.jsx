@@ -16,9 +16,12 @@ import { tiktokService } from '../services/tiktokService'
 import TikTokVideoUploadModal from '../components/TikTok/TikTokVideoUploadModal'
 import TikTokPhotoPostModal from '../components/TikTok/TikTokPhotoPostModal'
 import TikTokStoryModal from '../components/TikTok/TikTokStoryModal'
+import { scheduleService } from '../services/scheduleService'
+import { useStore } from '../store'
 
 export default function TikTokStudio() {
   const { loading, execute } = useApi()
+  const { setSchedules } = useStore()
   const [account, setAccount] = useState(null)
   const [creatorInfo, setCreatorInfo] = useState(null)
   const [showVideoModal, setShowVideoModal] = useState(false)
@@ -31,6 +34,7 @@ export default function TikTokStudio() {
   useEffect(() => {
     loadAccount()
     loadCreatorInfo()
+    scheduleService.getAllSchedules().then(setSchedules).catch(() => {})
   }, [])
 
   const loadAccount = () => {

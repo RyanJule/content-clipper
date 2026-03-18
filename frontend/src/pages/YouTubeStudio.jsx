@@ -19,9 +19,12 @@ import { youtubeService } from '../services/youtubeService'
 import YouTubeUploadModal from '../components/YouTube/YouTubeUploadModal'
 import YouTubeCommunityModal from '../components/YouTube/YouTubeCommunityModal'
 import YouTubeThumbnailModal from '../components/YouTube/YouTubeThumbnailModal'
+import { scheduleService } from '../services/scheduleService'
+import { useStore } from '../store'
 
 export default function YouTubeStudio() {
   const { loading, execute } = useApi()
+  const { setSchedules } = useStore()
   const [channel, setChannel] = useState(null)
   const [videos, setVideos] = useState([])
   const [pageToken, setPageToken] = useState(null)
@@ -33,6 +36,7 @@ export default function YouTubeStudio() {
   useEffect(() => {
     loadChannel()
     loadVideos()
+    scheduleService.getAllSchedules().then(setSchedules).catch(() => {})
   }, [])
 
   const loadChannel = () => {

@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import settings
 
@@ -6,7 +7,12 @@ celery_app = Celery(
     "content_clipper",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.tasks.media_tasks", "app.tasks.clip_tasks", "app.tasks.social_tasks"],
+    include=[
+        "app.tasks.media_tasks",
+        "app.tasks.clip_tasks",
+        "app.tasks.social_tasks",
+        "app.tasks.scheduled_posting",
+    ],
 )
 
 celery_app.conf.update(
@@ -18,4 +24,10 @@ celery_app.conf.update(
     task_track_started=True,
     task_time_limit=3600,
     task_soft_time_limit=3000,
+    beat_schedule={
+        "publish-due-scheduled-posts": {
+            "task": "app.tasks.scheduled_posting.publish_due_posts",
+            "schedule": crontab(minute="*"),  # every minute
+        },
+    },
 )

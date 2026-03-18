@@ -1,7 +1,8 @@
-import { ImagePlus, Plus, Trash2, X } from 'lucide-react'
+import { Calendar, ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { tiktokService } from '../../services/tiktokService'
+import SchedulePostModal from '../Schedule/SchedulePostModal'
 
 export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
   const [photoUrls, setPhotoUrls] = useState([''])
@@ -10,6 +11,7 @@ export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
   const [disableComment, setDisableComment] = useState(false)
   const [autoAddMusic, setAutoAddMusic] = useState(true)
   const [publishing, setPublishing] = useState(false)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
 
   const addPhotoUrl = () => {
     if (photoUrls.length >= 35) {
@@ -198,6 +200,15 @@ export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
               Cancel
             </button>
             <button
+              type="button"
+              onClick={() => setShowScheduleModal(true)}
+              disabled={publishing}
+              className="btn btn-secondary flex items-center space-x-1"
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Schedule</span>
+            </button>
+            <button
               type="submit"
               className="btn btn-primary bg-gray-900 hover:bg-gray-800"
               disabled={publishing || photoUrls.every(u => !u.trim())}
@@ -207,6 +218,16 @@ export default function TikTokPhotoPostModal({ onClose, onSuccess }) {
           </div>
         </form>
       </div>
+      {showScheduleModal && (
+        <SchedulePostModal
+          initialCaption={title}
+          onClose={() => setShowScheduleModal(false)}
+          onSuccess={() => {
+            setShowScheduleModal(false)
+            onClose()
+          }}
+        />
+      )}
     </div>
   )
 }
