@@ -19,6 +19,11 @@ export default function CalendarView({ compact = false, currentMonth: initialMon
   const [currentDate, setCurrentDate] = useState(initialMonth || new Date())
   const [loading, setLoading] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null)
+  const [daySlots, setDaySlots] = useState([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+
+  // Schedule modal state
+  const [scheduleModal, setScheduleModal] = useState(null) // null | { scheduledFor?, scheduleId? }
 
   // Slots for the selected day (from ContentSchedule patterns)
   const [daySlots, setDaySlots] = useState([])
@@ -66,6 +71,34 @@ export default function CalendarView({ compact = false, currentMonth: initialMon
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDeletePost = async (postId, e) => {
+    e.stopPropagation()
+    try {
+      await scheduleService.deletePost(postId)
+      toast.success('Post removed')
+      // Refresh slots for the selected day
+      if (selectedDay) {
+        const [year, month, day] = selectedDay.date.split('-').map(Number)
+        const updatedSlots = await scheduleService.getDaySlots(year, month, day)
+        setDaySlots(updatedSlots)
+      }
+      loadCalendarData()
+    } catch {
+      toast.error('Failed to delete post')
+    }
+  }
+
+  const handleScheduleSuccess = async () => {
+    setScheduleModal(null)
+    // Refresh slots and calendar
+    if (selectedDay) {
+      const [year, month, day] = selectedDay.date.split('-').map(Number)
+      const updatedSlots = await scheduleService.getDaySlots(year, month, day)
+      setDaySlots(updatedSlots)
+    }
+    loadCalendarData()
   }
 
   const previousMonth = () => {
@@ -156,12 +189,11 @@ export default function CalendarView({ compact = false, currentMonth: initialMon
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
   const calendarDays = []
 
-  // Add empty cells for days before month starts (adjust for Monday start)
+  // Add empty cells for days before month starts (Monday-start grid)
   for (let i = 0; i < (firstDay === 0 ? 6 : firstDay - 1); i++) {
     calendarDays.push(null)
   }
 
-  // Add days of month
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const dayData = calendarData.find(d => d.date === dateStr)
@@ -395,7 +427,64 @@ export default function CalendarView({ compact = false, currentMonth: initialMon
                           </p>
                         )}
                       </div>
-                    ))}
+                      {slot.is_taken && slot.post?.caption && (
+                        <p className="text-gray-600 mt-1 text-xs truncate">{slot.post.caption}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : schedules.length === 0 ? (
+                <p className="text-sm text-gray-500 mb-4">
+                  No active schedules. Create a schedule to see time slots here.
+                </p>
+              ) : (
+                <p className="text-sm text-gray-400 mb-4">
+                  No schedule slots for this day. Active schedules may not include this weekday.
+                </p>
+              )}
+
+              {/* Any extra posts not tied to a slot */}
+              {selectedDay.posts.filter(p => !daySlots.some(s => s.post?.id === p.id)).length >
+                0 && (
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">Other Posts</h5>
+                  <div className="space-y-2">
+                    {selectedDay.posts
+                      .filter(p => !daySlots.some(s => s.post?.id === p.id))
+                      .map(post => (
+                        <div key={post.id} className="text-sm p-2 bg-gray-50 rounded">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">
+                              {new Date(post.scheduled_for).toLocaleTimeString('default', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            <div className="flex items-center space-x-2">
+                              <span
+                                className={`px-2 py-0.5 rounded text-xs ${
+                                  post.status === 'scheduled'
+                                    ? 'bg-green-100 text-green-700'
+                                    : post.status === 'content_ready'
+                                      ? 'bg-yellow-100 text-yellow-700'
+                                      : 'bg-gray-100 text-gray-700'
+                                }`}
+                              >
+                                {post.status}
+                              </span>
+                              <button
+                                onClick={e => handleDeletePost(post.id, e)}
+                                className="text-gray-400 hover:text-red-500"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          {post.caption && (
+                            <p className="text-gray-600 mt-1 text-xs truncate">{post.caption}</p>
+                          )}
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}

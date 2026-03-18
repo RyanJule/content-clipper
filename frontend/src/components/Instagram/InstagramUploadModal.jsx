@@ -75,6 +75,7 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
   const { schedules, accounts } = useStore()
   const [activeTab, setActiveTab] = useState('image')
   const [caption, setCaption] = useState('')
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
 
   // Single-file state (image / video / reel)
   const [file, setFile] = useState(null)
@@ -502,6 +503,16 @@ export default function InstagramUploadModal({ onClose, onSuccess }) {
           </div>
         </form>
       </div>
+      {showScheduleModal && (
+        <SchedulePostModal
+          initialCaption={caption}
+          onClose={() => setShowScheduleModal(false)}
+          onSuccess={() => {
+            setShowScheduleModal(false)
+            onClose()
+          }}
+        />
+      )}
     </div>
 
     {showScheduleModal && (

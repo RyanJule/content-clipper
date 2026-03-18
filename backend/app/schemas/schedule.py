@@ -77,6 +77,15 @@ class ScheduledPost(ScheduledPostBase):
         from_attributes = True
 
 
+class ScheduleSlot(BaseModel):
+    schedule_id: int
+    schedule_name: str
+    time: str  # HH:MM
+    scheduled_for: datetime
+    is_taken: bool
+    post: Optional[ScheduledPost] = None
+
+
 class CalendarDay(BaseModel):
     date: str  # YYYY-MM-DD
     posts_needed: int

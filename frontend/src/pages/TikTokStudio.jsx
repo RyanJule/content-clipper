@@ -17,10 +17,13 @@ import { useStore } from '../store'
 import TikTokVideoUploadModal from '../components/TikTok/TikTokVideoUploadModal'
 import TikTokPhotoPostModal from '../components/TikTok/TikTokPhotoPostModal'
 import TikTokStoryModal from '../components/TikTok/TikTokStoryModal'
+import { scheduleService } from '../services/scheduleService'
+import { useStore } from '../store'
 
 export default function TikTokStudio() {
   const { setSchedules } = useStore()
   const { loading, execute } = useApi()
+  const { setSchedules } = useStore()
   const [account, setAccount] = useState(null)
   const [creatorInfo, setCreatorInfo] = useState(null)
   const [showVideoModal, setShowVideoModal] = useState(false)

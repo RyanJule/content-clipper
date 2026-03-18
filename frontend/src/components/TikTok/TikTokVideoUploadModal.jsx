@@ -655,6 +655,16 @@ export default function TikTokVideoUploadModal({ onClose, onSuccess }) {
           </div>
         </form>
       </div>
+      {showScheduleModal && (
+        <SchedulePostModal
+          initialCaption={title}
+          onClose={() => setShowScheduleModal(false)}
+          onSuccess={() => {
+            setShowScheduleModal(false)
+            onClose()
+          }}
+        />
+      )}
     </div>
 
     {showScheduleModal && (

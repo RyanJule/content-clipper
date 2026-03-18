@@ -18,6 +18,7 @@ from app.schemas.schedule import (
     ScheduledPost,
     ScheduledPostCreate,
     ScheduledPostUpdate,
+    ScheduleSlot,
     ScheduleSuggestion,
     ScheduleSlot,
 )
@@ -107,6 +108,61 @@ async def get_schedule_suggestions(
     ]
 
     return suggestions
+
+
+@router.get("/slots/{year}/{month}/{day}", response_model=List[ScheduleSlot])
+async def get_day_slots(
+    year: int,
+    month: int,
+    day: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get available posting slots for a specific day from active ContentSchedules."""
+    target_date = datetime(year, month, day)
+    # weekday(): Monday=0, Sunday=6 — matches our days_of_week convention
+    day_of_week = target_date.weekday()
+
+    active_schedules = (
+        db.query(ScheduleModel)
+        .filter(
+            ScheduleModel.user_id == current_user.id,
+            ScheduleModel.is_active.is_(True),
+        )
+        .all()
+    )
+
+    slots: list[ScheduleSlot] = []
+    for schedule in active_schedules:
+        if day_of_week not in (schedule.days_of_week or []):
+            continue
+        for time_str in schedule.posting_times or []:
+            try:
+                hour, minute = map(int, time_str.split(":"))
+            except (ValueError, AttributeError):
+                continue
+            slot_dt = datetime(year, month, day, hour, minute)
+            existing_post = (
+                db.query(ScheduledPostModel)
+                .filter(
+                    ScheduledPostModel.schedule_id == schedule.id,
+                    ScheduledPostModel.scheduled_for == slot_dt,
+                )
+                .first()
+            )
+            slots.append(
+                ScheduleSlot(
+                    schedule_id=schedule.id,
+                    schedule_name=schedule.name,
+                    time=time_str,
+                    scheduled_for=slot_dt,
+                    is_taken=existing_post is not None,
+                    post=existing_post,
+                )
+            )
+
+    slots.sort(key=lambda s: s.scheduled_for)
+    return slots
 
 
 @router.get("/{schedule_id}", response_model=ContentSchedule)
@@ -333,7 +389,8 @@ async def create_scheduled_post(
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
 
-    db_post = ScheduledPostModel(user_id=current_user.id, **post.model_dump())
+    post_data = post.model_dump(exclude_none=True)
+    db_post = ScheduledPostModel(user_id=current_user.id, **post_data)
 
     db.add(db_post)
     db.commit()

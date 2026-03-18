@@ -9,6 +9,7 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
   const { schedules, accounts } = useStore()
   const [file, setFile] = useState(null)
   const [title, setTitle] = useState('')
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState('')
   const [privacyStatus, setPrivacyStatus] = useState(isShort ? 'public' : 'private')
@@ -383,6 +384,16 @@ export default function YouTubeUploadModal({ isShort = false, onClose, onSuccess
           </div>
         </form>
       </div>
+      {showScheduleModal && (
+        <SchedulePostModal
+          initialCaption={title}
+          onClose={() => setShowScheduleModal(false)}
+          onSuccess={() => {
+            setShowScheduleModal(false)
+            onClose()
+          }}
+        />
+      )}
     </div>
 
     {showScheduleModal && (

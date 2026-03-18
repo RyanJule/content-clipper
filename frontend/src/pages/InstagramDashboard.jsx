@@ -19,6 +19,7 @@ import { useStore } from '../store'
 export default function InstagramDashboard() {
   const { setSchedules } = useStore()
   const { loading, execute } = useApi()
+  const { setSchedules } = useStore()
   const [accountInfo, setAccountInfo] = useState(null)
   const [media, setMedia] = useState([])
   const [selectedMedia, setSelectedMedia] = useState(null)

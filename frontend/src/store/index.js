@@ -15,6 +15,7 @@ export const useStore = create(set => ({
       media: [],
       clips: [],
       posts: [],
+      scheduledPosts: [],
       accounts: [],
       schedules: [],
       selectedBrandId: null,
@@ -100,6 +101,17 @@ export const useStore = create(set => ({
       posts: state.posts.map(post => (post.id === id ? { ...post, ...updates } : post)),
     })),
   removePost: id => set(state => ({ posts: state.posts.filter(p => p.id !== id) })),
+
+  // Scheduled posts state
+  scheduledPosts: [],
+  setScheduledPosts: scheduledPosts => set({ scheduledPosts }),
+  addScheduledPost: post => set(state => ({ scheduledPosts: [...state.scheduledPosts, post] })),
+  updateScheduledPost: (id, updates) =>
+    set(state => ({
+      scheduledPosts: state.scheduledPosts.map(p => (p.id === id ? { ...p, ...updates } : p)),
+    })),
+  removeScheduledPost: id =>
+    set(state => ({ scheduledPosts: state.scheduledPosts.filter(p => p.id !== id) })),
 
   // UI state
   sidebarOpen: true,
