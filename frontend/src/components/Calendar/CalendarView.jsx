@@ -22,13 +22,6 @@ export default function CalendarView({ compact = false, currentMonth: initialMon
   const [daySlots, setDaySlots] = useState([])
   const [loadingSlots, setLoadingSlots] = useState(false)
 
-  // Schedule modal state
-  const [scheduleModal, setScheduleModal] = useState(null) // null | { scheduledFor?, scheduleId? }
-
-  // Slots for the selected day (from ContentSchedule patterns)
-  const [daySlots, setDaySlots] = useState([])
-  const [loadingSlots, setLoadingSlots] = useState(false)
-
   // Schedule-post modal config; null = hidden, object = shown with pre-fill
   const [scheduleModalConfig, setScheduleModalConfig] = useState(null)
 
@@ -71,34 +64,6 @@ export default function CalendarView({ compact = false, currentMonth: initialMon
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleDeletePost = async (postId, e) => {
-    e.stopPropagation()
-    try {
-      await scheduleService.deletePost(postId)
-      toast.success('Post removed')
-      // Refresh slots for the selected day
-      if (selectedDay) {
-        const [year, month, day] = selectedDay.date.split('-').map(Number)
-        const updatedSlots = await scheduleService.getDaySlots(year, month, day)
-        setDaySlots(updatedSlots)
-      }
-      loadCalendarData()
-    } catch {
-      toast.error('Failed to delete post')
-    }
-  }
-
-  const handleScheduleSuccess = async () => {
-    setScheduleModal(null)
-    // Refresh slots and calendar
-    if (selectedDay) {
-      const [year, month, day] = selectedDay.date.split('-').map(Number)
-      const updatedSlots = await scheduleService.getDaySlots(year, month, day)
-      setDaySlots(updatedSlots)
-    }
-    loadCalendarData()
   }
 
   const previousMonth = () => {
@@ -377,62 +342,6 @@ export default function CalendarView({ compact = false, currentMonth: initialMon
                     ))}
                   </div>
                 </div>
-              ) : null}
-
-              {/* Existing scheduled posts */}
-              {selectedDay.posts.length > 0 && (
-                <div>
-                  <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                    Scheduled Posts
-                  </h5>
-                  <div className="space-y-2">
-                    {selectedDay.posts.map(post => (
-                      <div
-                        key={post.id}
-                        className="text-sm p-3 bg-gray-50 border border-gray-200 rounded-lg"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-800">
-                            {new Date(post.scheduled_for).toLocaleTimeString('default', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                          <div className="flex items-center space-x-2">
-                            <span
-                              className={`px-2 py-0.5 rounded text-xs font-medium ${statusBadgeClass(post.status)}`}
-                            >
-                              {post.status.replace('_', ' ')}
-                            </span>
-                            {post.status !== 'posted' && (
-                              <button
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  handleDeletePost(post.id)
-                                }}
-                                className="text-gray-300 hover:text-red-400 transition-colors"
-                                title="Remove scheduled post"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        {post.caption && (
-                          <p className="text-gray-600 mt-1 text-xs line-clamp-2">{post.caption}</p>
-                        )}
-                        {post.hashtags?.length > 0 && (
-                          <p className="text-blue-500 text-xs mt-0.5 truncate">
-                            {post.hashtags.map(h => `#${h}`).join(' ')}
-                          </p>
-                        )}
-                      </div>
-                      {slot.is_taken && slot.post?.caption && (
-                        <p className="text-gray-600 mt-1 text-xs truncate">{slot.post.caption}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
               ) : schedules.length === 0 ? (
                 <p className="text-sm text-gray-500 mb-4">
                   No active schedules. Create a schedule to see time slots here.
@@ -473,7 +382,7 @@ export default function CalendarView({ compact = false, currentMonth: initialMon
                                 {post.status}
                               </span>
                               <button
-                                onClick={e => handleDeletePost(post.id, e)}
+                                onClick={() => handleDeletePost(post.id)}
                                 className="text-gray-400 hover:text-red-500"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
